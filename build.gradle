@@ -1,0 +1,50 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'eu.appsatori:gradle-fatjar-plugin:0.3'
+    }
+}
+
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'eu.appsatori.fatjar'
+
+
+repositories {
+    jcenter()
+}
+
+
+fatJar {
+    manifest {
+        attributes 'Main-Class': 'io.crate.frameworks.mesos.Main',
+        'Implementation-Title': 'Crate-Mesos'
+    }
+}
+
+dependencies {
+    compile 'org.slf4j:slf4j-log4j12:1.7.5'
+    compile 'org.apache.mesos:mesos:0.21.0'
+    compile 'com.google.guava:guava:18.0'
+    testCompile 'junit:junit:4.11'
+}
+
+def jvmTestFlags = ['-ea']
+
+idea {
+    workspace {
+        iws.withXml { xmlFile ->
+            def runManager = xmlFile.asNode().component.find { it.@name == 'RunManager' }
+
+            // enable assertions for junit tests
+            def junitDefaults = runManager.configuration.find { it.@default == 'true' && it.@type == 'JUnit' }
+            junitDefaults.option.find { it.@name == 'VM_PARAMETERS' }.replaceNode {
+                option(name: 'VM_PARAMETERS', value: jvmTestFlags.join(' '))
+            }
+        }
+    }
+}
