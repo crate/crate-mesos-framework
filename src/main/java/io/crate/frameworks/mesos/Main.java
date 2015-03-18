@@ -38,8 +38,9 @@ public class Main {
         // terminate immediately when the framework is terminated. For production
         // deployments this probably isn't the desired behavior, so a timeout can be
         // specified here, allowing another instance of the framework to take over.
-        final int frameworkFailoverTimeout = 0;
+        final int frameworkFailoverTimeout = 60 * 60;
 
+        // TODO: need to persist frameworkID
         FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
                 .setName("CrateFramework")
                 .setUser("root")
@@ -91,7 +92,6 @@ public class Main {
 
         // Ensure that the driver process terminates.
         driver.stop();
-
         System.exit(status);
     }
 }

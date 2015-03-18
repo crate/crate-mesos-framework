@@ -7,8 +7,10 @@ import org.apache.mesos.Protos.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
+
+import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 public class CrateContainer {
 
@@ -20,7 +22,7 @@ public class CrateContainer {
 
     private final String version = "latest";
     private final Integer id;
-    private final Set<String> occupiedHosts;
+    private final Collection<String> occupiedHosts;
     private final String clusterName;
 
     private final String hostname;
@@ -28,10 +30,10 @@ public class CrateContainer {
     private final TaskID taskId;
     private final String nodeNode;
 
-    public CrateContainer(Integer id, String clusterName, String hostname, Set<String> occupiedHosts) {
+    public CrateContainer(Integer id, String clusterName, String hostname, Collection<String> occupiedHosts) {
         this.id = id;
         this.occupiedHosts = occupiedHosts;
-        this.taskId = TaskID.newBuilder().setValue(Integer.toString(this.id)).build();
+        this.taskId = taskID(Integer.toString(id));
         this.clusterName = clusterName;
         this.hostname = hostname;
         this.imageName = String.format("%s:%s", REPO, this.version);
@@ -86,6 +88,8 @@ public class CrateContainer {
                 .setContainer(containerInfo)
                 .setCommand(cmd);
 
+
+        // TODO: use configured resources instead of everything
         for (Protos.Resource resource : offer.getResourcesList()) {
             taskBuilder.addResources(resource);
         }
