@@ -11,6 +11,7 @@ echo 'docker,mesos' > /etc/mesos-slave/containerizers
 echo '10mins' > /etc/mesos-slave/executor_registration_timeout
 echo 'ports(*):[31000-31099, 31101-32000, 4200-4399]' > /etc/mesos-slave/resources
 
+gpasswd -a vagrant docker
 systemctl enable docker
 systemctl start docker
 systemctl start zookeeper
