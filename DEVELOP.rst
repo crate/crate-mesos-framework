@@ -61,3 +61,12 @@ To run the crate-mesos framework::
     java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar 127.0.0.1:5050 1
 
 The Mesos WebUI is then available under http://localhost:5050 and Crate is available under http://localhost:4200/admin
+
+
+.. _Java: http://www.java.com/
+
+.. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
+
+.. _OpenJDK: http://openjdk.java.net/projects/jdk7/
+
+.. _Gradle: http://www.gradle.org/
