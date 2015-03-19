@@ -5,10 +5,7 @@ import com.google.common.base.Joiner;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
@@ -21,7 +18,7 @@ public class CrateContainer {
     private final static int TRANSPORT_PORT = 4300;
 
     private final String version = "latest";
-    private final Integer id;
+    private final UUID id;
     private final Collection<String> occupiedHosts;
     private final String clusterName;
 
@@ -30,10 +27,10 @@ public class CrateContainer {
     private final TaskID taskId;
     private final String nodeNode;
 
-    public CrateContainer(Integer id, String clusterName, String hostname, Collection<String> occupiedHosts) {
+    public CrateContainer(UUID id, String clusterName, String hostname, Collection<String> occupiedHosts) {
         this.id = id;
         this.occupiedHosts = occupiedHosts;
-        this.taskId = taskID(Integer.toString(id));
+        this.taskId = taskID(id.toString());
         this.clusterName = clusterName;
         this.hostname = hostname;
         this.imageName = String.format("%s:%s", REPO, this.version);

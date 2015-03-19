@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 
 import static io.crate.frameworks.mesos.SaneProtos.*;
 
@@ -24,9 +24,6 @@ public class CrateScheduler implements Scheduler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateScheduler.class);
 
     private final CrateState crateState;
-
-    /** Task ID generator. */
-    private final AtomicInteger taskIDGenerator = new AtomicInteger();
 
     private CrateInstances crateInstances;
     private ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
@@ -99,7 +96,7 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                int id = taskIDGenerator.incrementAndGet();
+                UUID id = UUID.randomUUID();
                 CrateContainer container = new CrateContainer(id, "mesos", offer.getHostname(), crateInstances.hosts());
                 Protos.TaskInfo taskInfo = container.taskInfo(offer);
 
