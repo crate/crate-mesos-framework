@@ -2,23 +2,22 @@ package io.crate.frameworks.mesos;
 
 import com.google.common.base.Optional;
 import com.google.protobuf.ByteString;
+import io.crate.frameworks.mesos.api.CrateHttpService;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
-import org.apache.mesos.Protos.Credential;
-import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.Protos.Status;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.state.ZooKeeperState;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Source code adapted from the example that ships with Mesos.
- */
+
 public class Main {
 
-    /** Show command-line usage. */
+    /**
+     * Show command-line usage.
+     */
     private static void usage() {
         String name = Main.class.getName();
         System.err.println("Usage: " + name + " master-ip-and-port number-of-instances");
@@ -37,16 +36,9 @@ public class Main {
         }
         BasicConfigurator.configure();
 
-
-        // If the framework stops running, mesos will terminate all of the tasks that
-        // were initiated by the framework but only once the fail-over timeout period
-        // has expired. Using a timeout of zero here means that the tasks will
-        // terminate immediately when the framework is terminated. For production
-        // deployments this probably isn't the desired behavior, so a timeout can be
-        // specified here, allowing another instance of the framework to take over.
         final int frameworkFailoverTimeout = 60 * 60;
 
-        FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
+        Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("CrateFramework")
                 .setUser("root")
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
@@ -86,25 +78,27 @@ public class Main {
                 System.exit(1);
             }
 
-            Credential credential = Credential.newBuilder()
+            Protos.Credential credential = Protos.Credential.newBuilder()
                     .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
                     .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
                     .build();
 
             frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
-
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), scriptName, credential);
         } else {
             frameworkBuilder.setPrincipal("crate-framework");
-
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), scriptName);
         }
+
+        CrateHttpService api = new CrateHttpService(crateState);
+        api.start();
 
         int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
 
         // Ensure that the driver process terminates.
+        api.stop();
         driver.stop();
         System.exit(status);
     }
-}
 
+}

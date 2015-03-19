@@ -26,7 +26,10 @@ public class CrateState {
     private Variable zkInstances = null;
     private Variable zkFrameworkID = null;
 
+    private int desiredInstances;
+
     public CrateState(ZooKeeperState zkState) {
+        this.desiredInstances = 0;
         this.zkState = zkState;
         LOGGER.info("retrieving state from zk");
         zkInstancesFuture = zkState.fetch(INSTANCES);
@@ -59,8 +62,11 @@ public class CrateState {
     }
 
     public int desiredInstances() {
-        // TODO: must be configurable
-        return 1;
+        return desiredInstances;
+    }
+
+    public void desiredInstances(int instances) {
+        desiredInstances = instances;
     }
 
     public void frameworkID(String frameworkId) {
