@@ -39,7 +39,7 @@ public class CrateContainer {
         this.clusterName = clusterName;
         this.hostname = hostname;
         this.imageName = String.format("%s:%s", REPO, this.version);
-        this.nodeNode = String.format("%s%s", this.clusterName, id);
+        this.nodeNode = String.format("%s-%s", this.clusterName, id);
     }
 
     public String getHostname() {

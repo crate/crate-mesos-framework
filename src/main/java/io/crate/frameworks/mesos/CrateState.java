@@ -1,97 +1,74 @@
 package io.crate.frameworks.mesos;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
-import org.apache.mesos.state.Variable;
-import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.io.*;
 
-public class CrateState {
+public class CrateState implements Serializable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateState.class);
 
-    private final ZooKeeperState zkState;
+    private Observable<Integer> desiredInstances = new Observable<>(UNDEFINED_DESIRED_INSTANCES);
+    private String frameworkId = null;
+    private CrateInstances crateInstances = new CrateInstances();
 
-    private static final String INSTANCES = "crate_instances";
-    private static final String FRAMEWORK_ID = "framework_id";
+    private static final long serialVersionUID = 1L;
+    public static final int UNDEFINED_DESIRED_INSTANCES = -1;
 
-    private final Future<Variable> zkInstancesFuture;
-    private final Future<Variable> zkFrameworkIDFuture;
 
-    private Variable zkInstances = null;
-    private Variable zkFrameworkID = null;
+    public static CrateState fromStream(byte[] value) throws IOException {
+        if (value.length == 0) {
+            return new CrateState();
+        }
+        ByteArrayInputStream in = new ByteArrayInputStream(value);
+        try (ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
+            CrateState state = (CrateState) objectInputStream.readObject();
+            return state;
+        } catch (ClassNotFoundException e) {
+            LOGGER.error("Could not deserialize ClusterState:", e);
+        }
+        return null;
+    }
 
-    private int desiredInstances;
-
-    public CrateState(ZooKeeperState zkState) {
-        this.desiredInstances = 0;
-        this.zkState = zkState;
-        LOGGER.info("retrieving state from zk");
-        zkInstancesFuture = zkState.fetch(INSTANCES);
-        zkFrameworkIDFuture = zkState.fetch(FRAMEWORK_ID);
+    public byte[] toStream() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (ObjectOutputStream objOut = new ObjectOutputStream(out)) {
+            objOut.writeObject(this);
+        } catch (IOException e){
+            LOGGER.error("Could not serialize ClusterState:", e);
+        }
+        return out.toByteArray();
     }
 
     public CrateInstances crateInstances() {
-        if (zkInstances == null) {
-            try {
-                zkInstances = zkInstancesFuture.get();
-            } catch (ExecutionException | InterruptedException e) {
-                LOGGER.error("Couldn't retrieve crateInstances from ZK");
-                return new CrateInstances();
-            }
-        }
-        try {
-            CrateInstances crateInstances = CrateInstances.fromStream(zkInstances.value());
-            LOGGER.info("received crateInstances from zk... got {} instances", crateInstances.size());
-            return crateInstances;
-        } catch (IOException e) {
-            LOGGER.error("Couldn't read/serialize crateInstances");
-            return new CrateInstances();
-        }
+        return crateInstances;
     }
 
     public void instances(CrateInstances activeOrPendingInstances) {
-        LOGGER.info("updating state with {} instances in zk", activeOrPendingInstances.size());
-        zkState.store(zkInstances.mutate(activeOrPendingInstances.toStream()));
-        LOGGER.info("stored new state");
+        this.crateInstances = activeOrPendingInstances;
     }
 
-    public int desiredInstances() {
+    public Observable<Integer> desiredInstances() {
         return desiredInstances;
     }
 
     public void desiredInstances(int instances) {
-        desiredInstances = instances;
+        desiredInstances.setValue(instances);
     }
 
-    public void frameworkID(String frameworkId) {
-        zkState.store(zkFrameworkID.mutate(frameworkId.getBytes(Charsets.UTF_8)));
-        LOGGER.info("Stored frameworkID: {}", frameworkId);
+    public void frameworkId(String frameworkId) {
+        this.frameworkId = frameworkId;
     }
 
     public Optional<String> frameworkId() {
-        if (zkFrameworkID == null) {
-            try {
-                zkFrameworkID = zkFrameworkIDFuture.get();
-            } catch (ExecutionException | InterruptedException e) {
-                LOGGER.error("error retrieving framework_id from zk", e);
-                return Optional.absent();
-            }
-        }
+        return Optional.fromNullable(frameworkId);
+    }
 
-        if (zkFrameworkID.value().length == 0) {
-            LOGGER.info("ZK didn't have a frameworkID. Will get a new one");
-            return Optional.absent();
-        }
-
-
-        String id = new String(zkFrameworkID.value(), Charsets.UTF_8);
-        LOGGER.info("Re-using frameworkID {}", id);
-        return Optional.of(id);
+    @Override
+    public String toString() {
+        return String.format("%s { frameworkId=%s, crateInstances=%d, desiredInstances=%d }",
+                this.getClass().getName(), frameworkId, crateInstances.size(), desiredInstances.getValue());
     }
 }

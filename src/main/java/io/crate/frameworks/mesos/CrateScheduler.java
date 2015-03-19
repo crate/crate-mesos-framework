@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import io.crate.frameworks.mesos.config.ClusterConfiguration;
 import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
@@ -7,89 +8,95 @@ import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 
-/**
- * Scheduler to launch Docker containers.
- *
- */
-
 public class CrateScheduler implements Scheduler {
 
-    /** Logger. */
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateScheduler.class);
 
-    private final CrateState crateState;
+    private final PersistentStateStore stateStore;
     private final ResourceConfiguration resourceConfiguration;
+    private final ClusterConfiguration clusterConfiguration;
 
     private CrateInstances crateInstances;
     ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
-    public CrateScheduler(CrateState crateState, ResourceConfiguration resourceConfiguration) {
-        this.crateState = crateState;
+    public CrateScheduler(PersistentStateStore store, ResourceConfiguration resourceConfiguration, ClusterConfiguration clusterConfiguration) {
+        this.stateStore = store;
         this.resourceConfiguration = resourceConfiguration;
+        this.clusterConfiguration = clusterConfiguration;
     }
 
     @Override
-    public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
-        LOGGER.info("registered() master={}:{}, framework={}",
-                masterInfo.getIp(), masterInfo.getPort(), frameworkID.getValue());
+    public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
+        LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
+        CrateState state = stateStore.state();
 
-        crateState.frameworkID(frameworkID.getValue());
-        crateInstances = crateState.crateInstances();
+        state.frameworkId(frameworkID.getValue());
+        stateStore.save();
 
-        if (crateInstances.size() > 0) {
-            reconcileTasks = new ArrayList<>(crateInstances.size());
-            for (CrateInstance crateInstance : crateInstances) {
-                Protos.TaskStatus.Builder builder = Protos.TaskStatus.newBuilder();
-                builder.setState(crateInstance.state() == CrateInstance.State.RUNNING
-                        ? Protos.TaskState.TASK_RUNNING
-                        : Protos.TaskState.TASK_STARTING);
-                builder.setTaskId(taskID(crateInstance.taskId()));
-                reconcileTasks.add(builder.build());
-            }
-            schedulerDriver.reconcileTasks(reconcileTasks);
+        // todo: use instances from state
+        crateInstances = state.crateInstances();
+        state.desiredInstances().addObserver(new InstancesObserver(driver));
+        reconcileTasks(driver);
+    }
+
+    private class InstancesObserver implements Observer<Integer> {
+        private final SchedulerDriver driver;
+
+        public InstancesObserver(SchedulerDriver driver) {
+            assert driver != null : "driver must not be null";
+            this.driver = driver;
+        }
+
+        public void update(Integer data) {
+            LOGGER.info("got new desiredInstances value: {}", data);
+            resizeCluster(driver);
         }
     }
 
-    @Override
-    public void reregistered(SchedulerDriver schedulerDriver, Protos.MasterInfo masterInfo) {
-        LOGGER.info("reregistered() master={}", masterInfo.getHostname());
-        crateInstances = crateState.crateInstances();
 
-        // TODO: also run reconcile
+    @Override
+    public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
+        LOGGER.info("Reregistered framwork. Starting task reconciliation.");
+        reconcileTasks(driver);
+        // TODO: update instancesObserver with new driver
     }
 
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
-        LOGGER.info("resourceOffers() with {} offers", offers.size());
+        LOGGER.info("resourceOffers() with {} offer(s)", offers.size());
 
         if (!reconcileTasks.isEmpty()) {
-            LOGGER.info("declining all offers.. got some reconcile tasks");
-            for (Protos.Offer offer : offers) {
-                driver.declineOffer(offer.getId());
-            }
+            LOGGER.info("declining all offers ... got some reconcile tasks");
+            declineAllOffers(driver, offers);
             return;
         }
 
-        int desiredInstances = crateState.desiredInstances();
+        CrateState state = stateStore.state();
+        int desiredInstances = state.desiredInstances().getValue();
 
-        int toKill = crateInstances.size() - desiredInstances;
-        if (toKill > 0) {
+        int toKill = state.crateInstances().size() - desiredInstances;
+        if (toKill == 0) {
+            LOGGER.debug("Nothing to do ... decline offers!");
+            declineAllOffers(driver, offers);
+        } else if (toKill >= 0) {
             killInstances(driver, toKill);
-        } else if (toKill < 0) {
+            declineAllOffers(driver, offers);
+        } else {
             int toSpawn = toKill * -1;
+            LOGGER.debug("toSpawn: {}", toSpawn);
 
             List<Protos.TaskInfo> tasks = new ArrayList<>(toSpawn);
             List<Protos.OfferID> offerIDs = new ArrayList<>(toSpawn);
 
             for (Protos.Offer offer : offers) {
                 if (tasks.size() == toSpawn) {
-                    break;
+                    driver.declineOffer(offer.getId());
+                    continue;
                 }
 
                 if (crateInstances.anyOnHost(offer.getHostname())) {
@@ -100,11 +107,11 @@ public class CrateScheduler implements Scheduler {
 
                 if (!resourceConfiguration.matches(offer.getResourcesList())) {
                     LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
+                    driver.declineOffer(offer.getId());
                     continue;
                 }
-
-                CrateContainer container = new CrateContainer(
-                        "mesos", offer.getHostname(), crateInstances.hosts(), resourceConfiguration);
+                CrateContainer container = new CrateContainer(clusterConfiguration.clusterName(),
+                        offer.getHostname(), crateInstances.hosts(), resourceConfiguration);
                 Protos.TaskInfo taskInfo = container.taskInfo(offer);
 
                 LOGGER.info("Launching task {}", container.taskId().getValue());
@@ -117,9 +124,20 @@ public class CrateScheduler implements Scheduler {
 
             if (!tasks.isEmpty()) {
                 Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-                crateState.instances(crateInstances);
+                state.instances(crateInstances);
+
+                stateStore.save();
                 driver.launchTasks(offerIDs, tasks, filters);
             }
+        }
+
+    }
+
+    private void declineAllOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
+        LOGGER.debug("decline all offers: {}", offers.size());
+        for (Protos.Offer offer : offers) {
+            LOGGER.debug("decline: {}", offer.getId());
+           driver.declineOffer(offer.getId());
         }
     }
 
@@ -131,6 +149,7 @@ public class CrateScheduler implements Scheduler {
             if (killed == toKill) {
                 break;
             }
+            LOGGER.info("Kill task {}", crateInstance.taskId());
             driver.killTask(taskID(crateInstance.taskId()));
             killed++;
         }
@@ -138,38 +157,57 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void offerRescinded(SchedulerDriver schedulerDriver, Protos.OfferID offerID) {
-        LOGGER.info("offerRescinded()");
+        LOGGER.info("Offer rescinded: {}", offerID);
         // if any pending on that offer remove them?
     }
 
     @Override
     public void statusUpdate(SchedulerDriver driver, Protos.TaskStatus taskStatus) {
         final String taskId = taskStatus.getTaskId().getValue();
-        LOGGER.info("statusUpdate() task {} is in state {}: {}",
-                taskId, taskStatus.getState(), taskStatus.getMessage());
+        LOGGER.info("statusUpdate() {}", taskStatus.getMessage());
+        LOGGER.info("{} {}", taskStatus.getState(), taskId);
 
         if (!reconcileTasks.isEmpty()) {
-            for (int i = 0; i < reconcileTasks.size(); i++) {
+            for (int i = reconcileTasks.size()-1; i >= 0; i--) {
                 if (reconcileTasks.get(i).getTaskId().getValue().equals(taskId)) {
+                    LOGGER.debug("remove reconcile task: {}", i, reconcileTasks.get(i));
                     reconcileTasks.remove(i);
                 }
             }
+            LOGGER.debug("revive offers ...");
             driver.reviveOffers();
         }
 
         switch (taskStatus.getState()) {
             case TASK_RUNNING:
+                LOGGER.debug("update state to running ...");
                 crateInstances.setToRunning(taskId);
+                break;
+            case TASK_STAGING:
+            case TASK_STARTING:
+                LOGGER.debug("waiting ...");
                 break;
             case TASK_LOST:
             case TASK_FAILED:
+            case TASK_KILLED:
             case TASK_FINISHED:
+                LOGGER.debug("remove task ...");
                 crateInstances.removeTask(taskId);
                 break;
+            default:
+                LOGGER.warn("invalid state");
+                break;
         }
-        crateState.instances(crateInstances);
 
-        int instancesMissing = crateState.desiredInstances() - crateInstances.size();
+        stateStore.state().instances(crateInstances);
+        stateStore.save();
+
+        resizeCluster(driver);
+    }
+
+    private void resizeCluster(SchedulerDriver driver) {
+        int instancesMissing = stateStore.state().desiredInstances().getValue() - crateInstances.size();
+        LOGGER.debug("Resize cluster: {}", instancesMissing);
         if (instancesMissing > 0) {
             requestMoreResources(driver, instancesMissing);
         } else if (instancesMissing < 0) {
@@ -191,28 +229,47 @@ public class CrateScheduler implements Scheduler {
     }
 
     @Override
-    public void frameworkMessage(SchedulerDriver schedulerDriver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
+    public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
         LOGGER.info("frameworkMessage()");
     }
 
     @Override
-    public void disconnected(SchedulerDriver schedulerDriver) {
+    public void disconnected(SchedulerDriver driver) {
         LOGGER.info("disconnected()");
     }
 
     @Override
-    public void slaveLost(SchedulerDriver schedulerDriver, Protos.SlaveID slaveID) {
+    public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveID) {
         LOGGER.info("slaveLost()");
     }
 
     @Override
-    public void executorLost(SchedulerDriver schedulerDriver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
+    public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
         LOGGER.info("executorLost()");
     }
 
     @Override
-    public void error(SchedulerDriver schedulerDriver, String s) {
+    public void error(SchedulerDriver driver, String s) {
         LOGGER.error("error() {}", s);
+    }
+
+
+    private void reconcileTasks(SchedulerDriver driver) {
+        LOGGER.debug("Reconciling tasks ... {}", crateInstances.size());
+        if (crateInstances.size() > 0) {
+            reconcileTasks = new ArrayList<>(crateInstances.size());
+            for (CrateInstance instance : crateInstances) {
+                Protos.TaskState state = instance.state() == CrateInstance.State.RUNNING
+                        ? Protos.TaskState.TASK_RUNNING
+                        : Protos.TaskState.TASK_STARTING;
+                LOGGER.debug("taskID {} state={}", instance.taskId(), state);
+                Protos.TaskStatus.Builder builder = Protos.TaskStatus.newBuilder();
+                builder.setState(state);
+                builder.setTaskId(taskID(instance.taskId()));
+                reconcileTasks.add(builder.build());
+            }
+            driver.reconcileTasks(reconcileTasks);
+        }
     }
 
 }

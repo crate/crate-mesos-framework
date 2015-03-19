@@ -1,9 +1,14 @@
 package io.crate.frameworks.mesos;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.util.*;
 
 public class CrateInstances implements Serializable, Iterable<CrateInstance> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CrateInstances.class);
 
     private final ArrayList<CrateInstance> instances = new ArrayList<>();
     private HashSet<String> hosts;
@@ -49,6 +54,7 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
             crateInstances.hosts = null;
             return crateInstances;
         } catch (ClassNotFoundException e) {
+            LOGGER.error("Failed to deserialize CrateInstances:", e);
             e.printStackTrace();
         }
         return null;
@@ -56,12 +62,12 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
 
     public byte[] toStream() {
         // TODO: clean up exception handling
-
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ObjectOutputStream objOut = new ObjectOutputStream(out)) {
             objOut.writeObject(this);
         } catch (IOException e){
-
+            LOGGER.error("Failed to serialize CrateInstances:", e);
+            e.printStackTrace();
         }
         return out.toByteArray();
     }
@@ -94,4 +100,5 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
     public Iterator<CrateInstance> iterator() {
         return instances.iterator();
     }
+
 }

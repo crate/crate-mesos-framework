@@ -9,22 +9,21 @@ import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
-import org.apache.mesos.Protos.Status;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.state.ZooKeeperState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
 
 public class Main {
 
-    /**
-     * Command-line entry point.
-     * <br/>
-     * Example usage: java io.crate.frameworks.mesos.Main
-     */
-    public static void main(String[] args) throws Exception {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
+    private static final String ZK_URL = "localhost:2181";
+
+    public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
 
         final int frameworkFailoverTimeout = 60 * 60;
@@ -35,10 +34,12 @@ public class Main {
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
         ClusterConfiguration clusterConfiguration = ClusterConfiguration.fromEnvironment();
-        CrateState crateState = new CrateState(
-                new ZooKeeperState("localhost:2181", 20_000, TimeUnit.MILLISECONDS, "/crate-mesos/" + clusterConfiguration.clusterName()));
+        PersistentStateStore stateStore = new PersistentStateStore(
+                new ZooKeeperState(ZK_URL, 20_000, TimeUnit.MILLISECONDS,
+                        String.format("/crate-mesos/%s", clusterConfiguration.clusterName())),
+                clusterConfiguration);
 
-        Optional<String> frameworkId = crateState.frameworkId();
+        Optional<String> frameworkId = stateStore.state().frameworkId();
         if (frameworkId.isPresent()) {
             frameworkBuilder.setId(Protos.FrameworkID.newBuilder().setValue(frameworkId.get()).build());
         }
@@ -49,7 +50,7 @@ public class Main {
         }
 
         ResourceConfiguration resourceConfiguration = ResourceConfiguration.fromEnvironment();
-        final Scheduler scheduler = new CrateScheduler(crateState, resourceConfiguration);
+        final Scheduler scheduler = new CrateScheduler(stateStore, resourceConfiguration, clusterConfiguration);
 
         // create the driver
         MesosSchedulerDriver driver;
@@ -81,10 +82,10 @@ public class Main {
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMaster);
         }
 
-        CrateHttpService api = new CrateHttpService(crateState, ApiConfiguration.fromEnvironment());
+        CrateHttpService api = new CrateHttpService(stateStore, ApiConfiguration.fromEnvironment());
         api.start();
 
-        int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
+        int status = driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1;
 
         // Ensure that the driver process terminates.
         api.stop();

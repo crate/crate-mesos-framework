@@ -67,7 +67,7 @@ http://localhost:4200/admin
 
 
 As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
-also possible to simply use ``bin/run`` which will invoke both commands.
+also possible to simply use ``bin/deploy`` which will invoke both commands.
 
 Running Crate-Mesos-Framework via Marathon
 ------------------------------------------

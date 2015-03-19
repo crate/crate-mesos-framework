@@ -26,7 +26,8 @@ public class ClusterConfiguration {
     private static class Defaults {
 
         public static String CRATE_CLUSTER_NAME_DEFAULT = "crate";
-        public static String CRATE_NODE_COUNT_DEFAULT = "1";
+        // for testing it is easier to have 0 nodes when staring the framework
+        public static String CRATE_NODE_COUNT_DEFAULT = "0";
     }
 
     public static ClusterConfiguration fromEnvironment() {

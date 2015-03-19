@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import io.crate.frameworks.mesos.config.ClusterConfiguration;
 import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
@@ -29,8 +30,10 @@ public class CrateSchedulerTest {
     @Mock
     private CrateState state;
 
-    private Protos.MasterInfo masterInfo;
+    @Mock
+    private PersistentStateStore store;
 
+    private Protos.MasterInfo masterInfo;
 
     @Captor
     private ArgumentCaptor<Collection<Protos.TaskInfo>> taskInfoCaptor;
@@ -46,14 +49,15 @@ public class CrateSchedulerTest {
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
         instances.addInstance(new CrateInstance("foo", "1"));
-        when(state.crateInstances()).thenReturn(instances);
+        when(store.state()).thenReturn(state);
+        when(store.state().crateInstances()).thenReturn(instances);
+        when(store.state().desiredInstances()).thenReturn(new Observable<Integer>(0));
         CrateScheduler crateScheduler = new CrateScheduler(
-                state,
-                ResourceConfiguration.fromEnvironment()
-        );
+                store,
+                ResourceConfiguration.fromEnvironment(),
+                ClusterConfiguration.fromEnvironment());
 
         crateScheduler.registered(driver, Protos.FrameworkID.getDefaultInstance(), masterInfo);
-
         assertThat(crateScheduler.reconcileTasks.size(), is(1));
     }
 
@@ -62,14 +66,16 @@ public class CrateSchedulerTest {
     public void testResourceOffersDoesNotSpawnTooManyTasks() throws Exception {
         CrateInstances instances = new CrateInstances();
 
-        when(state.crateInstances()).thenReturn(instances);
-        when(state.desiredInstances()).thenReturn(4);
+        when(store.state()).thenReturn(state);
+        when(store.state().crateInstances()).thenReturn(instances);
+        when(store.state().desiredInstances()).thenReturn(new Observable<Integer>(4));
 
         Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
 
         ResourceConfiguration resourceConfiguration = ResourceConfiguration.fromEnvironment();
+        ClusterConfiguration clusterConfiguration = ClusterConfiguration.fromEnvironment();
 
-        CrateScheduler crateScheduler = new CrateScheduler(state, resourceConfiguration);
+        CrateScheduler crateScheduler = new CrateScheduler(store, resourceConfiguration, clusterConfiguration);
         crateScheduler.registered(driver, frameworkID, masterInfo);
 
         List<Protos.Offer> offers = new ArrayList<>();

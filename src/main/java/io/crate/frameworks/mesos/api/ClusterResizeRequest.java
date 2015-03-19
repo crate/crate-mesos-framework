@@ -1,12 +1,15 @@
 package io.crate.frameworks.mesos.api;
 
-public class ClusterInfo {
+/**
+ * A model that represents a cluster resize action.
+ */
+public class ClusterResizeRequest {
 
     private int instances;
 
-    public ClusterInfo() {}
+    public ClusterResizeRequest() {}
 
-    public ClusterInfo(int instances) {
+    public ClusterResizeRequest(int instances) {
         this.instances = instances;
     }
 
