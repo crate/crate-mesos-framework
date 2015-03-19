@@ -1,3 +1,13 @@
+Crate-Mesos-Framework
+=====================
+
+This is an integration framework allows running and managing Crate_ database through Mesos_.
+
+Are you a Developer?
+====================
+
+You can build Crate-Mesos-Framework on your own with the latest version hosted on GitHub.
+To do so, please refer to ``DEVELOP.rst`` for further information.
 
 
 Build Crate-mesos jar::
@@ -22,3 +32,8 @@ and run the crate-mesos framework::
 
 
 The Mesos WebUI is then available under http://localhost:5050 and Crate is available under http://localhost:4200/admin
+
+
+.. _Crate: https://github.com/crate/crate
+
+.. _Mesos: http://mesos.apache.org
