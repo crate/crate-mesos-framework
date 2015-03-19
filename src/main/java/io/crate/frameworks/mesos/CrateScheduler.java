@@ -3,13 +3,11 @@ package io.crate.frameworks.mesos;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
-import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.crate.frameworks.mesos.SaneProtos.*;
@@ -33,8 +31,8 @@ public class CrateScheduler implements Scheduler {
     private CrateInstances crateInstances;
     private ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
-    public CrateScheduler(int desiredInstances) {
-        crateState = new CrateState(new ZooKeeperState("localhost:2181", 20000, TimeUnit.MILLISECONDS, "/crate-mesos/CrateFramework"));
+    public CrateScheduler(CrateState crateState) {
+        this.crateState = crateState;
     }
 
     @Override
@@ -42,7 +40,8 @@ public class CrateScheduler implements Scheduler {
         LOGGER.info("registered() master={}:{}, framework={}",
                 masterInfo.getIp(), masterInfo.getPort(), frameworkID.getValue());
 
-        crateInstances = crateState.retrieveState();
+        crateState.frameworkID(frameworkID.getValue());
+        crateInstances = crateState.crateInstances();
 
         if (crateInstances.size() > 0) {
             reconcileTasks = new ArrayList<>(crateInstances.size());
@@ -61,7 +60,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void reregistered(SchedulerDriver schedulerDriver, Protos.MasterInfo masterInfo) {
         LOGGER.info("reregistered() master={}", masterInfo.getHostname());
-        crateInstances = crateState.retrieveState();
+        crateInstances = crateState.crateInstances();
 
         // TODO: also run reconcile
     }
@@ -118,7 +117,7 @@ public class CrateScheduler implements Scheduler {
             }
         }
 
-        crateState.storeState(crateInstances);
+        crateState.instances(crateInstances);
     }
 
     @Override
@@ -151,7 +150,7 @@ public class CrateScheduler implements Scheduler {
                 crateInstances.removeTask(taskId);
                 break;
         }
-        crateState.storeState(crateInstances);
+        crateState.instances(crateInstances);
 
         int instancesMissing = crateState.desiredInstances() - crateInstances.size();
         if (instancesMissing > 0) {
