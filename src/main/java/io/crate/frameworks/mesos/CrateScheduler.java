@@ -24,12 +24,14 @@ public class CrateScheduler implements Scheduler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateScheduler.class);
 
     private final CrateState crateState;
+    private final ResourceConfiguration resourceConfiguration;
 
     private CrateInstances crateInstances;
     private ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
-    public CrateScheduler(CrateState crateState) {
+    public CrateScheduler(CrateState crateState, ResourceConfiguration resourceConfiguration) {
         this.crateState = crateState;
+        this.resourceConfiguration = resourceConfiguration;
     }
 
     @Override
@@ -78,11 +80,7 @@ public class CrateScheduler implements Scheduler {
 
         int toKill = crateInstances.size() - desiredInstances;
         if (toKill > 0) {
-            for (int i = 0; i < toKill; i++) {
-                // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
-                LOGGER.info("too many instances running.. kill task");
-                driver.killTask(taskID(crateInstances.pop().taskId()));
-            }
+            killInstances(driver, toKill);
         } else if (toKill < 0) {
             int toSpawn = toKill * -1;
 
@@ -96,8 +94,13 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                UUID id = UUID.randomUUID();
-                CrateContainer container = new CrateContainer(id, "mesos", offer.getHostname(), crateInstances.hosts());
+                if (!resourceConfiguration.matches(offer.getResourcesList())) {
+                    LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
+                    continue;
+                }
+
+                CrateContainer container = new CrateContainer(
+                        "mesos", offer.getHostname(), crateInstances.hosts(), resourceConfiguration);
                 Protos.TaskInfo taskInfo = container.taskInfo(offer);
 
                 LOGGER.info("Launching task {}", container.taskId().getValue());
@@ -115,6 +118,14 @@ public class CrateScheduler implements Scheduler {
         }
 
         crateState.instances(crateInstances);
+    }
+
+    private void killInstances(SchedulerDriver driver, int toKill) {
+        for (int i = 0; i < toKill; i++) {
+            // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
+            LOGGER.info("too many instances running.. kill task");
+            driver.killTask(taskID(crateInstances.pop().taskId()));
+        }
     }
 
     @Override
@@ -135,6 +146,7 @@ public class CrateScheduler implements Scheduler {
                     reconcileTasks.remove(i);
                 }
             }
+            driver.reviveOffers();
         }
 
         switch (taskStatus.getState()) {
@@ -152,22 +164,20 @@ public class CrateScheduler implements Scheduler {
         int instancesMissing = crateState.desiredInstances() - crateInstances.size();
         if (instancesMissing > 0) {
             requestMoreResources(driver, instancesMissing);
+        } else if (instancesMissing < 0) {
+            killInstances(driver, instancesMissing * -1);
         }
     }
 
     private void requestMoreResources(SchedulerDriver driver, int instancesMissing) {
         LOGGER.info("asking for more resources for {} more instances", instancesMissing);
-        driver.reviveOffers();
 
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
-            Protos.Request.Builder builder = Protos.Request.newBuilder();
-            // TODO: how many resources to use per instance should be configurable
-            builder.addResources(cpus(1));
-            builder.addResources(mem(200));
-            builder.addResources(scalarResource("ports", 4200, null));
-            builder.addResources(scalarResource("ports", 4300, null));
-            requests.add(builder.build());
+            requests.add(Protos.Request.newBuilder()
+                    .addAllResources(resourceConfiguration.getAllRequiredResources())
+                    .build()
+            );
         }
         driver.requestResources(requests);
     }

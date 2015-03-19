@@ -4,7 +4,6 @@ import org.apache.mesos.Protos;
 
 public class SaneProtos {
 
-
     public static Protos.Resource cpus(double value) {
         return scalarResource("cpus", value, null);
     }
@@ -27,5 +26,16 @@ public class SaneProtos {
             builder.setRole(role);
         }
         return builder.build();
+    }
+
+
+    public static Protos.Resource ports(int from, int to, String role) {
+        return Protos.Resource.newBuilder()
+                .setName("ports")
+                .setType(Protos.Value.Type.RANGES)
+                .setRole(role)
+                .setRanges(Protos.Value.Ranges.newBuilder().addRange(
+                        Protos.Value.Range.newBuilder().setBegin(from).setEnd(to).build()))
+                .build();
     }
 }

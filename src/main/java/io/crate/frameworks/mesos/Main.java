@@ -51,6 +51,7 @@ public class Main {
                 .setUser("root")
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
+
         CrateState crateState = new CrateState(
                 new ZooKeeperState("localhost:2181", 20_000, TimeUnit.MILLISECONDS, "/crate-mesos/CrateFramework"));
 
@@ -66,7 +67,9 @@ public class Main {
 
         // parse command-line args
         final String scriptName = args[0];
-        final Scheduler scheduler = new CrateScheduler(crateState);
+
+        ResourceConfiguration resourceConfiguration = ResourceConfiguration.fromEnvironment();
+        final Scheduler scheduler = new CrateScheduler(crateState, resourceConfiguration);
 
         // create the driver
         MesosSchedulerDriver driver;
