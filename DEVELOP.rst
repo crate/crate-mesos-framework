@@ -32,36 +32,51 @@ Gradle can be used to generate project files that can be opened in IntelliJ::
 Building and running Crate-Mesos-Framework
 ==========================================
 
-To compile run::
-
-    ./gradlew compileJava
-
-In order to run Crate-Mesos-Framework you would need ``mesos`` running. The easiest
-way to have it locally is to run it in a virtual box.
-You can use ``Vagrant`` development environment for this.
-
-Running Mesos in a Virtualbox
-=============================
-
-To build crate-mesos-framework jar run::
+Before the crate-mesos-framework can be launched the ``jar`` file has to be generated::
 
     ./gradlew fatJar
 
-Run::
+The jar cannot be run directly as it requires a mesos-master and the mesos
+native libraries.  This project includes a Vagrantfile, so ``vagrant`` can be
+used to instrument a virtual machine which has mesos installed.
+
+If ``vagrant`` is installed simply run::
 
     vagrant up
 
-Then connect to the vagrant box::
+This will create and provision the VM if this is the first time ``vagrant up``
+is run, otherwise it will simply boot up the existing VM.
 
-    vagrant ssh
+Once the VM is up and running the crate-mesos-framework can be started `inside` the VM.
+To do so ``vagrant ssh`` can be used::
 
-Project root directory is available under /vagrant folder inside the virtual box.
-To run the crate-mesos framework::
+    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar 127.0.0.1:5050 1"
 
-    java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar 127.0.0.1:5050 1
+.. note::
 
-The Mesos WebUI is then available under http://localhost:5050 and Crate is available under http://localhost:4200/admin
+    Inside the VM /vagrant is mapped to the project root. This way the
+    crate-mesos.jar can be accesses from inside the VM.
 
+
+The Mesos WebUI should be available under http://localhost:5050 immediately
+after ``vagrant up`` is finished.
+
+Once the crate-mesos-framework has been launched Crate should become available
+(after some time, as docker pull might take some time) under
+http://localhost:4200/admin
+
+
+As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
+also possible to simply use ``bin/run`` which will invoke both commands.
+
+
+Debugging
+=========
+
+It is not really possible to debug the framework from inside intellij. The best
+way is to use loggers and then watch all the log files from mesos::
+
+    vagrant ssh -c "tail -f /var/log/mesos/mesos-{slave,master}.{INFO,WARNING,ERROR}"
 
 .. _Java: http://www.java.com/
 
