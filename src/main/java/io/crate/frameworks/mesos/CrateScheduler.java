@@ -87,6 +87,10 @@ public class CrateScheduler implements Scheduler {
             List<Protos.OfferID> offerIDs = new ArrayList<>(toSpawn);
 
             for (Protos.Offer offer : offers) {
+                if (tasks.size() == toSpawn) {
+                    break;
+                }
+
                 if (crateInstances.anyOnHost(offer.getHostname())) {
                     LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
                     driver.declineOffer(offer.getId());
