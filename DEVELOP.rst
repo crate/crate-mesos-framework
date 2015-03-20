@@ -70,6 +70,13 @@ As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
 also possible to simply use ``bin/run`` which will invoke both commands.
 
 
+Running tests
+=============
+
+In order to run the tests simply run them from within intellij or use gradle::
+
+    ./gradlew test
+
 Debugging
 =========
 

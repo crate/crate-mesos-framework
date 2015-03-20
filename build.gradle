@@ -18,6 +18,12 @@ repositories {
     jcenter()
 }
 
+test {
+    testLogging {
+        // Show that tests are run in the command-line output
+        events 'started'
+    }
+}
 
 fatJar {
     manifest {
@@ -27,7 +33,7 @@ fatJar {
 }
 
 fatJarPrepareFiles {
-  exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA' 
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
 }
 
 dependencies {
