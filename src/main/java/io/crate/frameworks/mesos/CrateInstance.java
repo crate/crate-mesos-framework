@@ -1,7 +1,5 @@
 package io.crate.frameworks.mesos;
 
-import org.apache.mesos.Protos;
-
 import java.io.Serializable;
 
 public class CrateInstance implements Serializable {
@@ -15,9 +13,9 @@ public class CrateInstance implements Serializable {
         RUNNING
     }
 
-    public CrateInstance(CrateContainer container, Protos.TaskInfo taskInfo) {
-        taskId = taskInfo.getTaskId().getValue();
-        hostname = container.getHostname();
+    public CrateInstance(String hostname, String taskId) {
+        this.taskId = taskId;
+        this.hostname = hostname;
         state = State.PENDING;
     }
 

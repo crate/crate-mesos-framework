@@ -8,9 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-import static io.crate.frameworks.mesos.SaneProtos.*;
+import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 
 /**
@@ -27,7 +26,7 @@ public class CrateScheduler implements Scheduler {
     private final ResourceConfiguration resourceConfiguration;
 
     private CrateInstances crateInstances;
-    private ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
+    ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
     public CrateScheduler(CrateState crateState, ResourceConfiguration resourceConfiguration) {
         this.crateState = crateState;
@@ -105,7 +104,7 @@ public class CrateScheduler implements Scheduler {
 
                 LOGGER.info("Launching task {}", container.taskId().getValue());
 
-                crateInstances.addInstance(new CrateInstance(container, taskInfo));
+                crateInstances.addInstance(new CrateInstance(container.getHostname(), taskInfo.getTaskId().getValue()));
                 tasks.add(taskInfo);
                 LOGGER.debug("task: {}", taskInfo);
                 offerIDs.add(offer.getId());
@@ -113,18 +112,22 @@ public class CrateScheduler implements Scheduler {
 
             if (!tasks.isEmpty()) {
                 Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+                crateState.instances(crateInstances);
                 driver.launchTasks(offerIDs, tasks, filters);
             }
         }
-
-        crateState.instances(crateInstances);
     }
 
     private void killInstances(SchedulerDriver driver, int toKill) {
-        for (int i = 0; i < toKill; i++) {
-            // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
-            LOGGER.info("too many instances running.. kill task");
-            driver.killTask(taskID(crateInstances.pop().taskId()));
+        int killed = 0;
+        // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
+        LOGGER.info("Too many instances running. Killing {} tasks", toKill);
+        for (CrateInstance crateInstance : crateInstances) {
+            if (killed == toKill) {
+                break;
+            }
+            driver.killTask(taskID(crateInstance.taskId()));
+            killed++;
         }
     }
 

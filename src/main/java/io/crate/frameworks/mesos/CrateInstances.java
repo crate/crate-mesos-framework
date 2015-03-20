@@ -15,10 +15,6 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
         return instances.size();
     }
 
-    public CrateInstance pop() {
-        return instances.remove(0);
-    }
-
     public boolean anyOnHost(final String hostname) {
         return hosts().contains(hostname);
     }
