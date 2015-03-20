@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos.api;
 
+import io.crate.frameworks.mesos.config.ApiConfiguration;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -11,16 +12,15 @@ import java.util.concurrent.TimeUnit;
 
 public class CrateHttpService {
 
-    private final static int HTTP_PORT = 4040;
-    private final static URI HTTP_URI = URI.create(String.format("http://0.0.0.0:%d/", HTTP_PORT));
-
     private final HttpServer server;
 
-    public CrateHttpService(CrateState crateState) {
+    public CrateHttpService(CrateState crateState, ApiConfiguration config) {
         ResourceConfig httpConf = new ResourceConfig()
                 .register(new CrateRestResource(crateState))
                 .packages("io.crate.frameworks.mesos.api");
-        server = GrizzlyHttpServerFactory.createHttpServer(HTTP_URI, httpConf);
+        int http_port = config.apiPort();
+        URI httpUri = URI.create(String.format("http://0.0.0.0:%d/", http_port));
+        server = GrizzlyHttpServerFactory.createHttpServer(httpUri, httpConf);
     }
 
 
