@@ -78,6 +78,19 @@ way is to use loggers and then watch all the log files from mesos::
 
     vagrant ssh -c "tail -f /var/log/mesos/mesos-{slave,master}.{INFO,WARNING,ERROR}"
 
+
+Zookeeper
+=========
+
+If you need to reset the state in Zookeeper you can use the zkCli::
+
+    bin/zk
+
+and then to delete all crate-mesos state run::
+
+    rmr /crate-mesos
+
+
 .. _Java: http://www.java.com/
 
 .. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
