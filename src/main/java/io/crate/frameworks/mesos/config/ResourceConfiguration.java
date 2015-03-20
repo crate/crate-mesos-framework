@@ -1,9 +1,11 @@
-package io.crate.frameworks.mesos;
+package io.crate.frameworks.mesos.config;
 
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.crate.frameworks.mesos.Env;
+import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
 import java.util.Arrays;
@@ -21,8 +23,8 @@ public class ResourceConfiguration {
 
     public static class Defaults {
         public final static String CPUS = "0.5";
-        public final static String MEMORY = "100";
-        public final static String HEAP = "50";
+        public final static String MEMORY = "512";
+        public final static String HEAP = "256";
         public final static String DISK = "1024";
     }
 

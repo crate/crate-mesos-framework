@@ -50,7 +50,7 @@ is run, otherwise it will simply boot up the existing VM.
 Once the VM is up and running the crate-mesos-framework can be started `inside` the VM.
 To do so ``vagrant ssh`` can be used::
 
-    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar 127.0.0.1:5050 1"
+    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar"
 
 .. note::
 
@@ -69,6 +69,50 @@ http://localhost:4200/admin
 As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
 also possible to simply use ``bin/run`` which will invoke both commands.
 
+Running Crate-Mesos-Framework via Marathon
+------------------------------------------
+
+``Crate-Mesos-Framework`` instances can be run and controlled through Marathon_ system.
+For installing Marathon, please refer to `Mesosphere install guide`_. Marathon WebUI
+should be available under http://localhost:8080 after setting up.
+To run ``Crate-Mesos-Framework`` instance via ``HTTP`` you need to ``POST`` a JSON file
+with configuration environment variables to Marathon.
+
+Example
+-------
+
+``crate-mesos.json``
+
+::
+
+    {
+      "id": "/crate/dev",
+      "instances": 1,
+      "cpus": 0.5,
+      "mem": 256,
+      "ports": [0],
+      "uris": [
+      ],
+      "env": {
+        "JAVA_OPTS": "-Xms256m -Xmx256m",
+        "CRATE_CLUSTER_NAME": "dev-test",
+        "CRATE_NODE_COUNT": "1",
+        "CRATE_RESOURCE_CPU_CORES": "1.0",
+        "CRATE_RESOURCE_MEMORY": "512",
+        "CRATE_RESOURCE_DISK": "1024",
+        "MESOS_MASTER": "127.0.0.1:5050",
+        "FRAMEWORK_API_PORT": "4040"
+      },
+      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar"
+    }
+
+::
+
+::
+
+    curl -s -XPOST http://localhost:8080/v2/apps -d@crate-mesos.json -H "Content-Type: application/json"
+
+::
 
 Running tests
 =============
@@ -105,3 +149,7 @@ and then to delete all crate-mesos state run::
 .. _OpenJDK: http://openjdk.java.net/projects/jdk7/
 
 .. _Gradle: http://www.gradle.org/
+
+.. _Marathon: https://mesosphere.github.io/marathon/
+
+.. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/

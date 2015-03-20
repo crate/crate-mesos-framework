@@ -2,6 +2,7 @@ package io.crate.frameworks.mesos;
 
 
 import com.google.common.base.Joiner;
+import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.apache.mesos.Protos.*;
 
 import java.util.*;

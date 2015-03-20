@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rpm -Uvh http://repos.mesosphere.io/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm
+yum -y install marathon
 yum -y install mesos
 yum -y install mesosphere-zookeeper
 yum -y install docker
@@ -17,3 +18,4 @@ systemctl start docker
 systemctl start zookeeper
 systemctl start mesos-master
 systemctl start mesos-slave
+systemctl start marathon
