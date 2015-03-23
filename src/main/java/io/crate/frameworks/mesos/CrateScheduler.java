@@ -266,7 +266,7 @@ public class CrateScheduler implements Scheduler {
         LOGGER.error("error() {}", s);
     }
 
-    private void reconcileTasks(SchedulerDriver driver) {
+    void reconcileTasks(SchedulerDriver driver) {
         LOGGER.debug("Reconciling tasks ... {}", crateInstances.size());
         if (crateInstances.size() > 0) {
             reconcileTasks = new ArrayList<>(crateInstances.size());
@@ -274,7 +274,14 @@ public class CrateScheduler implements Scheduler {
                 Protos.TaskState state = instance.state() == CrateInstance.State.RUNNING
                         ? Protos.TaskState.TASK_RUNNING
                         : Protos.TaskState.TASK_STARTING;
-                LOGGER.debug("taskID {} state={}", instance.taskId(), state);
+
+                if (!instance.version().equals(configuration.version())) {
+                    LOGGER.info("Running instance has version {}. Configured is {}. Will change configuration to {}",
+                            instance.version(), configuration.version(), instance.version()
+                    );
+                    configuration.version(instance.version());
+                }
+                LOGGER.debug("taskID {} instance={}", instance.taskId(), instance);
                 Protos.TaskStatus.Builder builder = Protos.TaskStatus.newBuilder();
                 builder.setState(state);
                 builder.setTaskId(taskID(instance.taskId()));

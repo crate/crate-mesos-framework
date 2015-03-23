@@ -50,7 +50,7 @@ is run, otherwise it will simply boot up the existing VM.
 Once the VM is up and running the crate-mesos-framework can be started `inside` the VM.
 To do so ``vagrant ssh`` can be used::
 
-    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar"
+    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar --crate-version 0.47.7"
 
 .. note::
 
@@ -67,7 +67,7 @@ http://localhost:4200/admin
 
 
 As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
-also possible to simply use ``bin/deploy`` which will invoke both commands.
+also possible to simply use ``bin/deploy --crate-version 0.47.7`` which will invoke both commands.
 
 Running Crate-Mesos-Framework via Marathon
 ------------------------------------------

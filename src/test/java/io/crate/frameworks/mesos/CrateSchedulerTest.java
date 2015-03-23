@@ -51,14 +51,11 @@ public class CrateSchedulerTest {
         instances.addInstance(new CrateInstance("foo", "1", "0.47.0"));
         state.desiredInstances(0);
         state.instances(instances);
-        CrateScheduler crateScheduler = new CrateScheduler(
-                store,
-                new Configuration()
-        );
-        crateScheduler.registered(driver, Protos.FrameworkID.getDefaultInstance(), masterInfo);
+
+
+        CrateScheduler crateScheduler = initScheduler(new Configuration(), "xx");
         assertThat(crateScheduler.reconcileTasks.size(), is(1));
     }
-
 
     @Test
     public void testResourceOffersDoesNotSpawnTooManyTasks() throws Exception {
@@ -68,10 +65,8 @@ public class CrateSchedulerTest {
         state.instances(instances);
 
         Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
-
         Configuration configuration = new Configuration();
-        CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
-        crateScheduler.registered(driver, frameworkID, masterInfo);
+        CrateScheduler crateScheduler = initScheduler(configuration, frameworkID);
 
         List<Protos.Offer> offers = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -88,5 +83,31 @@ public class CrateSchedulerTest {
 
         verify(driver).launchTasks(anyCollectionOf(Protos.OfferID.class), taskInfoCaptor.capture(), any(Protos.Filters.class));
         assertThat(taskInfoCaptor.getValue().size(), is(4));
+    }
+
+    @Test
+    public void testReconcileTasksWithDifferentVersionAlreadyRunning() throws Exception {
+        // configured version should be changed to the version of the running instance
+        CrateInstances instances = new CrateInstances();
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.7"));
+        state.instances(instances);
+
+        Configuration configuration = new Configuration();
+        configuration.version("0.48.0");
+
+        CrateScheduler crateScheduler = initScheduler(configuration, "xx");
+        crateScheduler.reconcileTasks(driver);
+
+        assertThat(configuration.version(), is("0.47.7"));
+    }
+
+    private CrateScheduler initScheduler(Configuration configuration, String frameworkID) {
+        return initScheduler(configuration, Protos.FrameworkID.newBuilder().setValue(frameworkID).build());
+    }
+
+    private CrateScheduler initScheduler(Configuration configuration, Protos.FrameworkID frameworkID) {
+        CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
+        crateScheduler.registered(driver, frameworkID, masterInfo);
+        return crateScheduler;
     }
 }

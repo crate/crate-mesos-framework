@@ -1,2 +1,2 @@
 #!/bin/bash
-./gradlew fatJar && vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar --crate-version 0.47.7"
+./gradlew fatJar && vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar $*"

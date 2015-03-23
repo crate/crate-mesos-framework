@@ -91,6 +91,10 @@ public class Configuration {
                 '}';
     }
 
+    public void version(String version) {
+        this.version = version;
+    }
+
     public static class VersionValidator implements IParameterValidator {
 
         private static final Pattern VERSION_PATTERN = Pattern.compile("^\\d+\\.\\d+\\.\\d+$");
