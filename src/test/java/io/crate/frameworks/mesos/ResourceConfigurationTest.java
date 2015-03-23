@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 

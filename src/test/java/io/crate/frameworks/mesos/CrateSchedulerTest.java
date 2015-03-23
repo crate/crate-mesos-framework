@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import io.crate.frameworks.mesos.config.ResourceConfiguration;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
 import org.junit.Before;
