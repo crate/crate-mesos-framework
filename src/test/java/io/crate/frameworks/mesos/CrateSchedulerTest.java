@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static io.crate.frameworks.mesos.SaneProtos.taskID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
@@ -97,6 +98,10 @@ public class CrateSchedulerTest {
 
         CrateScheduler crateScheduler = initScheduler(configuration, "xx");
         crateScheduler.reconcileTasks(driver);
+        crateScheduler.statusUpdate(driver,
+                Protos.TaskStatus.newBuilder()
+                        .setTaskId(taskID("1"))
+                        .setState(Protos.TaskState.TASK_RUNNING).build());
 
         assertThat(configuration.version(), is("0.47.7"));
     }

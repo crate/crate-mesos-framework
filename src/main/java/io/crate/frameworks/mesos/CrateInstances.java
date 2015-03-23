@@ -1,5 +1,8 @@
 package io.crate.frameworks.mesos;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+
 import java.io.Serializable;
 import java.util.*;
 
@@ -66,4 +69,12 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
         return instances.iterator();
     }
 
+    public CrateInstance byTaskId(final String taskId) {
+        return Iterables.find(this, new Predicate<CrateInstance>() {
+            @Override
+            public boolean apply(CrateInstance input) {
+                return input.taskId().equals(taskId);
+            }
+        });
+    }
 }

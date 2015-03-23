@@ -185,6 +185,18 @@ public class CrateScheduler implements Scheduler {
                 if (reconcileTasks.get(i).getTaskId().getValue().equals(taskId)) {
                     LOGGER.debug("remove reconcile task: {}", i, reconcileTasks.get(i));
                     reconcileTasks.remove(i);
+
+                    if (taskStatus.getState() != Protos.TaskState.TASK_LOST) {
+                        CrateInstance instance = crateInstances.byTaskId(taskId);
+                        if (instance == null) {
+                            LOGGER.error("Got a task for an instance that isn't tracked. HELP :(");
+                        } else if (!instance.version().equals(configuration.version())) {
+                            LOGGER.info("Running instance has version {}. Configured is {}. Will change configuration to {}",
+                                    instance.version(), configuration.version(), instance.version()
+                            );
+                            configuration.version(instance.version());
+                        }
+                    }
                 }
             }
             LOGGER.debug("revive offers ...");
@@ -274,13 +286,6 @@ public class CrateScheduler implements Scheduler {
                 Protos.TaskState state = instance.state() == CrateInstance.State.RUNNING
                         ? Protos.TaskState.TASK_RUNNING
                         : Protos.TaskState.TASK_STARTING;
-
-                if (!instance.version().equals(configuration.version())) {
-                    LOGGER.info("Running instance has version {}. Configured is {}. Will change configuration to {}",
-                            instance.version(), configuration.version(), instance.version()
-                    );
-                    configuration.version(instance.version());
-                }
                 LOGGER.debug("taskID {} instance={}", instance.taskId(), instance);
                 Protos.TaskStatus.Builder builder = Protos.TaskStatus.newBuilder();
                 builder.setState(state);
