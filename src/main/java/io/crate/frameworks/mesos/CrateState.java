@@ -66,6 +66,10 @@ public class CrateState implements Serializable {
         return Optional.fromNullable(frameworkId);
     }
 
+    public int missingInstances() {
+        return desiredInstances().getValue() - crateInstances().size();
+    }
+
     @Override
     public String toString() {
         return String.format("%s { frameworkId=%s, crateInstances=%d, desiredInstances=%d }",

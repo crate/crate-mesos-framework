@@ -76,82 +76,80 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
-        LOGGER.info("resourceOffers() with {} offer(s)", offers.size());
-
         if (!reconcileTasks.isEmpty()) {
-            LOGGER.info("declining all offers ... got some reconcile tasks");
+            LOGGER.info("Declining all offers ... got some reconcile tasks");
             declineAllOffers(driver, offers);
             return;
         }
 
         CrateState state = stateStore.state();
-        int desiredInstances = state.desiredInstances().getValue();
-
-        int toKill = state.crateInstances().size() - desiredInstances;
-        if (toKill == 0) {
-            LOGGER.debug("Nothing to do ... decline offers!");
+        int required = state.missingInstances();
+        if (required == 0) {
+            // nothing to do ...
             declineAllOffers(driver, offers);
-        } else if (toKill >= 0) {
-            killInstances(driver, toKill);
+        } else if (required < 0) {
+            // kill redundant instances ...
+            killInstances(driver, required * -1);
             declineAllOffers(driver, offers);
         } else {
-            int toSpawn = toKill * -1;
-            LOGGER.debug("toSpawn: {}", toSpawn);
+            LOGGER.debug("Missing instances: {}", required);
 
-            List<Protos.TaskInfo> tasks = new ArrayList<>(toSpawn);
-            List<Protos.OfferID> offerIDs = new ArrayList<>(toSpawn);
+            List<Protos.TaskInfo> tasks = new ArrayList<>(required);
+            List<Protos.OfferID> offerIDs = new ArrayList<>(required);
 
             for (Protos.Offer offer : offers) {
-                if (tasks.size() == toSpawn) {
+                if (tasks.size() == required) {
                     driver.declineOffer(offer.getId());
                     continue;
                 }
 
-                if (crateInstances.anyOnHost(offer.getHostname())) {
-                    LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
+                Protos.TaskInfo taskInfo = tryToObtainTaskInfo(offer);
+                if (taskInfo == null) {
                     driver.declineOffer(offer.getId());
-                    continue;
+                } else {
+                    tasks.add(taskInfo);
+                    offerIDs.add(offer.getId());
+                    LOGGER.info("Adding task ... {}", taskInfo.getTaskId().getValue());
                 }
-
-                if (!Resources.matches(offer.getResourcesList(), configuration)) {
-                    LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
-                    driver.declineOffer(offer.getId());
-                    continue;
-                }
-                CrateContainer container = new CrateContainer(
-                        configuration,
-                        offer.getHostname(),
-                        crateInstances.hosts()
-                );
-                Protos.TaskInfo taskInfo = container.taskInfo(offer);
-
-                LOGGER.info("Launching task {}", container.taskId().getValue());
-
-                crateInstances.addInstance(new CrateInstance(
-                        container.getHostname(),
-                        taskInfo.getTaskId().getValue(),
-                        configuration.version()
-                ));
-                tasks.add(taskInfo);
-                LOGGER.debug("task: {}", taskInfo);
-                offerIDs.add(offer.getId());
             }
 
             if (!tasks.isEmpty()) {
-                Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
                 state.instances(crateInstances);
-
                 stateStore.save();
+
+                Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
                 driver.launchTasks(offerIDs, tasks, filters);
             }
         }
 
     }
 
+    private Protos.TaskInfo tryToObtainTaskInfo(Protos.Offer offer) {
+        if (crateInstances.anyOnHost(offer.getHostname())) {
+            LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
+            return null;
+        }
+        if (!Resources.matches(offer.getResourcesList(), configuration)) {
+            LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
+            return null;
+        }
+        CrateContainer container = new CrateContainer(
+                configuration,
+                offer.getHostname(),
+                crateInstances.hosts()
+        );
+        Protos.TaskInfo taskInfo = container.taskInfo(offer);
+        crateInstances.addInstance(new CrateInstance(
+                container.getHostname(),
+                taskInfo.getTaskId().getValue(),
+                configuration.version()
+        ));
+        return taskInfo;
+    }
+
     private void declineAllOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
-        LOGGER.debug("decline all offers: {}", offers.size());
         for (Protos.Offer offer : offers) {
-            LOGGER.debug("decline: {}", offer.getId());
+            LOGGER.debug("Decline offer {}", offer.getId().getValue());
             driver.declineOffer(offer.getId());
         }
     }
@@ -171,7 +169,7 @@ public class CrateScheduler implements Scheduler {
     }
 
     @Override
-    public void offerRescinded(SchedulerDriver schedulerDriver, Protos.OfferID offerID) {
+    public void offerRescinded(SchedulerDriver driver, Protos.OfferID offerID) {
         LOGGER.info("Offer rescinded: {}", offerID);
         // if any pending on that offer remove them?
     }
@@ -216,13 +214,13 @@ public class CrateScheduler implements Scheduler {
 
         stateStore.state().instances(crateInstances);
         stateStore.save();
-
         resizeCluster(driver);
     }
 
     private void resizeCluster(SchedulerDriver driver) {
-        int instancesMissing = stateStore.state().desiredInstances().getValue() - crateInstances.size();
-        LOGGER.debug("Resize cluster: {}", instancesMissing);
+        int instancesMissing = stateStore.state().missingInstances();
+        if (instancesMissing == 0) return;
+        LOGGER.debug("Resize cluster. {} missing instances.", instancesMissing);
         if (instancesMissing > 0) {
             requestMoreResources(driver, instancesMissing);
         } else if (instancesMissing < 0) {
@@ -232,13 +230,13 @@ public class CrateScheduler implements Scheduler {
 
     private void requestMoreResources(SchedulerDriver driver, int instancesMissing) {
         LOGGER.info("asking for more resources for {} more instances", instancesMissing);
-
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
-            requests.add(Protos.Request.newBuilder()
-                            .addAllResources(configuration.getAllRequiredResources())
-                            .build()
-            );
+            Protos.Request r = Protos.Request.newBuilder()
+                    .addAllResources(configuration.getAllRequiredResources())
+                    .build();
+            LOGGER.debug("add resource request {}", r.toString());
+            requests.add(r);
         }
         driver.requestResources(requests);
     }

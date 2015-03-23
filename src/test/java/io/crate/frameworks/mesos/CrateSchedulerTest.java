@@ -26,7 +26,6 @@ public class CrateSchedulerTest {
     @Mock
     private SchedulerDriver driver;
 
-    @Mock
     private CrateState state;
 
     @Mock
@@ -42,15 +41,16 @@ public class CrateSchedulerTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         masterInfo = Protos.MasterInfo.getDefaultInstance();
+        state = new CrateState();
+        when(store.state()).thenReturn(state);
     }
 
     @Test
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
         instances.addInstance(new CrateInstance("foo", "1", "0.47.0"));
-        when(store.state()).thenReturn(state);
-        when(store.state().crateInstances()).thenReturn(instances);
-        when(store.state().desiredInstances()).thenReturn(new Observable<>(0));
+        state.desiredInstances(0);
+        state.instances(instances);
         CrateScheduler crateScheduler = new CrateScheduler(
                 store,
                 new Configuration()
@@ -64,9 +64,8 @@ public class CrateSchedulerTest {
     public void testResourceOffersDoesNotSpawnTooManyTasks() throws Exception {
         CrateInstances instances = new CrateInstances();
 
-        when(store.state()).thenReturn(state);
-        when(store.state().crateInstances()).thenReturn(instances);
-        when(store.state().desiredInstances()).thenReturn(new Observable<>(4));
+        state.desiredInstances(4);
+        state.instances(instances);
 
         Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
 
