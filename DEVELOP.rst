@@ -91,19 +91,9 @@ Example
       "cpus": 0.5,
       "mem": 256,
       "ports": [0],
-      "uris": [
-      ],
-      "env": {
-        "JAVA_OPTS": "-Xms256m -Xmx256m",
-        "CRATE_CLUSTER_NAME": "dev-test",
-        "CRATE_NODE_COUNT": "1",
-        "CRATE_RESOURCE_CPU_CORES": "1.0",
-        "CRATE_RESOURCE_MEMORY": "512",
-        "CRATE_RESOURCE_DISK": "1024",
-        "MESOS_MASTER": "127.0.0.1:5050",
-        "FRAMEWORK_API_PORT": "4040"
-      },
-      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar"
+      "uris": [],
+      "env": {},
+      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar --crate-version 0.47.7"
     }
 
 ::
