@@ -6,10 +6,7 @@ import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos.*;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 import static java.util.Arrays.asList;
@@ -64,12 +61,20 @@ public class CrateContainer {
         assert Resources.matches(offer.getResourcesList(), configuration) :
                 "must have enough resources in offer. Otherwise CrateContainer must not be created";
 
-        // TODO: add heap options to container
+        Environment env = Environment.newBuilder()
+                .addAllVariables(Arrays.<Environment.Variable>asList(
+                        Environment.Variable.newBuilder()
+                                .setName("CRATE_HEAP_SIZE")
+                                .setValue(String.format("%sm", configuration.resourcesHeap().longValue()))
+                                .build()
+                ))
+                .build();
 
         // docker image info
         ContainerInfo.DockerInfo dockerInfo = ContainerInfo.DockerInfo.newBuilder()
                 .setImage(imageName)
                 .setNetwork(ContainerInfo.DockerInfo.Network.HOST)
+                .setPrivileged(true)
                 .build();
 
         // container info
@@ -81,6 +86,7 @@ public class CrateContainer {
         // command info
         CommandInfo cmd = CommandInfo.newBuilder()
                 .setShell(false)
+                .setEnvironment(env)
                 .addAllArguments(asList(CMD,
                         String.format("-Des.cluster.name=%s", clusterName),
                         String.format("-Des.node.name=%s", nodeNode),
