@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
@@ -94,11 +95,10 @@ public class CrateScheduler implements Scheduler {
         } else {
             LOGGER.debug("Missing instances: {}", required);
 
-            List<Protos.TaskInfo> tasks = new ArrayList<>(required);
-            List<Protos.OfferID> offerIDs = new ArrayList<>(required);
 
+            int launched = 0;
             for (Protos.Offer offer : offers) {
-                if (tasks.size() == required) {
+                if (launched == required) {
                     driver.declineOffer(offer.getId());
                     continue;
                 }
@@ -107,18 +107,15 @@ public class CrateScheduler implements Scheduler {
                 if (taskInfo == null) {
                     driver.declineOffer(offer.getId());
                 } else {
-                    tasks.add(taskInfo);
-                    offerIDs.add(offer.getId());
+                    state.instances(crateInstances);
+                    stateStore.save();
+
+                    Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+                    driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(taskInfo), filters);
                     LOGGER.info("Adding task ... {}", taskInfo.getTaskId().getValue());
+
+                    launched++;
                 }
-            }
-
-            if (!tasks.isEmpty()) {
-                state.instances(crateInstances);
-                stateStore.save();
-
-                Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-                driver.launchTasks(offerIDs, tasks, filters);
             }
         }
 
