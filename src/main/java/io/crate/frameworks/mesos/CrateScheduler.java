@@ -149,7 +149,6 @@ public class CrateScheduler implements Scheduler {
 
     private void declineAllOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
         for (Protos.Offer offer : offers) {
-            LOGGER.debug("Decline offer {}", offer.getId().getValue());
             driver.declineOffer(offer.getId());
         }
     }
