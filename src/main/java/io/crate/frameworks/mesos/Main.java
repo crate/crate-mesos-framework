@@ -2,6 +2,7 @@ package io.crate.frameworks.mesos;
 
 import com.beust.jcommander.JCommander;
 import com.google.common.base.Optional;
+import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
@@ -13,6 +14,7 @@ import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 
@@ -22,12 +24,22 @@ public class Main {
 
     private static final String ZK_URL = "localhost:2181";
 
+    private static final Set<String> HELP_OPTIONS = Sets.newHashSet("-h", "--help", "help");
+
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
 
         Configuration configuration = new Configuration();
-        JCommander jCommander = new JCommander(configuration, args);
+        JCommander jCommander;
 
+        for (String arg : args) {
+            if (HELP_OPTIONS.contains(arg)) {
+                jCommander = new JCommander(configuration);
+                jCommander.usage();
+                System.exit(1);
+            }
+        }
+        jCommander = new JCommander(configuration, args);
         LOGGER.debug("args: {}", configuration);
 
         final int frameworkFailoverTimeout = 60 * 60;
