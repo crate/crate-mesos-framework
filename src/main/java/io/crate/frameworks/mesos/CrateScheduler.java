@@ -15,16 +15,39 @@ import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 public class CrateScheduler implements Scheduler {
 
+    private class InstancesObserver implements Observer<Integer> {
+        private SchedulerDriver driver;
+
+        public InstancesObserver(SchedulerDriver driver) {
+            this.driver = driver;
+        }
+
+        public void update(Integer data) {
+            LOGGER.info("got new desiredInstances value: {}", data);
+            if (driver != null) {
+                resizeCluster(driver);
+            }
+        }
+
+        public void driver(SchedulerDriver driver) {
+            assert driver != null : "driver must not be null";
+            this.driver = driver;
+        }
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateScheduler.class);
 
     private final PersistentStateStore stateStore;
     private final ResourceConfiguration resourceConfiguration;
     private final ClusterConfiguration clusterConfiguration;
 
+    private InstancesObserver instancesObserver = new InstancesObserver(null);
     private CrateInstances crateInstances;
     ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
-    public CrateScheduler(PersistentStateStore store, ResourceConfiguration resourceConfiguration, ClusterConfiguration clusterConfiguration) {
+    public CrateScheduler(PersistentStateStore store,
+                          ResourceConfiguration resourceConfiguration,
+                          ClusterConfiguration clusterConfiguration) {
         this.stateStore = store;
         this.resourceConfiguration = resourceConfiguration;
         this.clusterConfiguration = clusterConfiguration;
@@ -37,33 +60,21 @@ public class CrateScheduler implements Scheduler {
 
         state.frameworkId(frameworkID.getValue());
         stateStore.save();
-
         // todo: use instances from state
         crateInstances = state.crateInstances();
-        state.desiredInstances().addObserver(new InstancesObserver(driver));
+
+        instancesObserver.driver(driver);
+        state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
     }
-
-    private class InstancesObserver implements Observer<Integer> {
-        private final SchedulerDriver driver;
-
-        public InstancesObserver(SchedulerDriver driver) {
-            assert driver != null : "driver must not be null";
-            this.driver = driver;
-        }
-
-        public void update(Integer data) {
-            LOGGER.info("got new desiredInstances value: {}", data);
-            resizeCluster(driver);
-        }
-    }
-
 
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framwork. Starting task reconciliation.");
+        CrateState state = stateStore.state();
+        instancesObserver.driver(driver);
+        state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
-        // TODO: update instancesObserver with new driver
     }
 
     @Override
@@ -137,7 +148,7 @@ public class CrateScheduler implements Scheduler {
         LOGGER.debug("decline all offers: {}", offers.size());
         for (Protos.Offer offer : offers) {
             LOGGER.debug("decline: {}", offer.getId());
-           driver.declineOffer(offer.getId());
+            driver.declineOffer(offer.getId());
         }
     }
 
@@ -252,7 +263,6 @@ public class CrateScheduler implements Scheduler {
     public void error(SchedulerDriver driver, String s) {
         LOGGER.error("error() {}", s);
     }
-
 
     private void reconcileTasks(SchedulerDriver driver) {
         LOGGER.debug("Reconciling tasks ... {}", crateInstances.size());
