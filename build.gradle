@@ -42,6 +42,8 @@ dependencies {
     compile 'org.slf4j:slf4j-log4j12:1.7.5'
     compile 'org.apache.mesos:mesos:0.21.1'
     compile 'com.google.guava:guava:18.0'
+    compile 'com.beust:jcommander:1.30'
+    compile 'org.jetbrains:annotations:13.0'
     testCompile 'junit:junit:4.11'
     testCompile ("org.mockito:mockito-core:1.10.8") {
         exclude group: 'org.hamcrest', module: 'hamcrest-core'

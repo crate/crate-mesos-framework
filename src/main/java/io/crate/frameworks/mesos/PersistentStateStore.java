@@ -1,12 +1,11 @@
 package io.crate.frameworks.mesos;
 
-import io.crate.frameworks.mesos.config.ClusterConfiguration;
 import org.apache.mesos.state.Variable;
 import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -22,12 +21,12 @@ public class PersistentStateStore {
     private Variable stateVariable = null;
 
 
-    public PersistentStateStore(ZooKeeperState zk, ClusterConfiguration conf) {
+    public PersistentStateStore(ZooKeeperState zk, int desiredInstances) {
         this.zk = zk;
         this.zkFuture = zk.fetch(CRATE_STATE);
         this.state = restore();
         int nodeCount = state.desiredInstances().getValue() == CrateState.UNDEFINED_DESIRED_INSTANCES ?
-                conf.nodeCount() :
+                desiredInstances :
                 state.desiredInstances().getValue();
         desiredInstances(nodeCount);
     }

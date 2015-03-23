@@ -1,14 +1,15 @@
 package io.crate.frameworks.mesos;
 
-import io.crate.frameworks.mesos.config.ClusterConfiguration;
-import io.crate.frameworks.mesos.config.ResourceConfiguration;
+import io.crate.frameworks.mesos.config.Configuration;
+import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
@@ -38,19 +39,15 @@ public class CrateScheduler implements Scheduler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateScheduler.class);
 
     private final PersistentStateStore stateStore;
-    private final ResourceConfiguration resourceConfiguration;
-    private final ClusterConfiguration clusterConfiguration;
+    private final Configuration configuration;
 
     private InstancesObserver instancesObserver = new InstancesObserver(null);
     private CrateInstances crateInstances;
     ArrayList<Protos.TaskStatus> reconcileTasks = new ArrayList<>();
 
-    public CrateScheduler(PersistentStateStore store,
-                          ResourceConfiguration resourceConfiguration,
-                          ClusterConfiguration clusterConfiguration) {
+    public CrateScheduler(PersistentStateStore store, Configuration configuration) {
         this.stateStore = store;
-        this.resourceConfiguration = resourceConfiguration;
-        this.clusterConfiguration = clusterConfiguration;
+        this.configuration = configuration;
     }
 
     @Override
@@ -116,18 +113,25 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                if (!resourceConfiguration.matches(offer.getResourcesList())) {
+                if (!Resources.matches(offer.getResourcesList(), configuration)) {
                     LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
                     driver.declineOffer(offer.getId());
                     continue;
                 }
-                CrateContainer container = new CrateContainer(clusterConfiguration.clusterName(),
-                        offer.getHostname(), crateInstances.hosts(), resourceConfiguration);
+                CrateContainer container = new CrateContainer(
+                        configuration,
+                        offer.getHostname(),
+                        crateInstances.hosts()
+                );
                 Protos.TaskInfo taskInfo = container.taskInfo(offer);
 
                 LOGGER.info("Launching task {}", container.taskId().getValue());
 
-                crateInstances.addInstance(new CrateInstance(container.getHostname(), taskInfo.getTaskId().getValue()));
+                crateInstances.addInstance(new CrateInstance(
+                        container.getHostname(),
+                        taskInfo.getTaskId().getValue(),
+                        configuration.version()
+                ));
                 tasks.add(taskInfo);
                 LOGGER.debug("task: {}", taskInfo);
                 offerIDs.add(offer.getId());
@@ -232,8 +236,8 @@ public class CrateScheduler implements Scheduler {
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
             requests.add(Protos.Request.newBuilder()
-                    .addAllResources(resourceConfiguration.getAllRequiredResources())
-                    .build()
+                            .addAllResources(configuration.getAllRequiredResources())
+                            .build()
             );
         }
         driver.requestResources(requests);

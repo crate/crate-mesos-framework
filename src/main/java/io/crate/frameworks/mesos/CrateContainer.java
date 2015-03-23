@@ -2,10 +2,14 @@ package io.crate.frameworks.mesos;
 
 
 import com.google.common.base.Joiner;
-import io.crate.frameworks.mesos.config.ResourceConfiguration;
+import io.crate.frameworks.mesos.config.Configuration;
+import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 import static java.util.Arrays.asList;
@@ -18,27 +22,25 @@ public class CrateContainer {
     private final static int HTTP_PORT = 4200;
     private final static int TRANSPORT_PORT = 4300;
 
-    private final String version = "latest";
     private final Collection<String> occupiedHosts;
-    private final ResourceConfiguration resourceConfiguration;
     private final String clusterName;
 
     private final String hostname;
     private final String imageName;
     private final TaskID taskId;
     private final String nodeNode;
+    private final Configuration configuration;
 
-    public CrateContainer(String clusterName,
+    public CrateContainer(Configuration configuration,
                           String hostname,
-                          Collection<String> occupiedHosts,
-                          ResourceConfiguration resourceConfiguration) {
+                          Collection<String> occupiedHosts) {
         UUID id = UUID.randomUUID();
+        this.configuration = configuration;
         this.occupiedHosts = occupiedHosts;
-        this.resourceConfiguration = resourceConfiguration;
         this.taskId = taskID(id.toString());
-        this.clusterName = clusterName;
+        this.clusterName = configuration.clusterName();
         this.hostname = hostname;
-        this.imageName = String.format("%s:%s", REPO, this.version);
+        this.imageName = String.format("%s:%s", REPO, configuration.version());
         this.nodeNode = String.format("%s-%s", this.clusterName, id);
     }
 
@@ -59,7 +61,7 @@ public class CrateContainer {
     }
 
     public TaskInfo taskInfo(Offer offer) {
-        assert resourceConfiguration.matches(offer.getResourcesList()) :
+        assert Resources.matches(offer.getResourcesList(), configuration) :
                 "must have enough resources in offer. Otherwise CrateContainer must not be created";
 
         // TODO: add heap options to container
@@ -95,7 +97,7 @@ public class CrateContainer {
                 .setContainer(containerInfo)
                 .setCommand(cmd);
 
-        taskBuilder.addAllResources(resourceConfiguration.getAllRequiredResources());
+        taskBuilder.addAllResources(configuration.getAllRequiredResources());
         return taskBuilder.build();
     }
 }

@@ -1,14 +1,9 @@
 package io.crate.frameworks.mesos;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
+import java.io.Serializable;
 import java.util.*;
 
 public class CrateInstances implements Serializable, Iterable<CrateInstance> {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(CrateInstances.class);
 
     private final ArrayList<CrateInstance> instances = new ArrayList<>();
     private HashSet<String> hosts;
@@ -40,36 +35,6 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
         if (hosts != null) {
             hosts.add(crateInstance.hostname());
         }
-    }
-
-    public static CrateInstances fromStream(byte[] value) throws IOException {
-        if (value.length == 0) {
-            return new CrateInstances();
-        }
-
-        // TODO: clean up exception handling
-        ByteArrayInputStream in = new ByteArrayInputStream(value);
-        try (ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
-            CrateInstances crateInstances = (CrateInstances) objectInputStream.readObject();
-            crateInstances.hosts = null;
-            return crateInstances;
-        } catch (ClassNotFoundException e) {
-            LOGGER.error("Failed to deserialize CrateInstances:", e);
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public byte[] toStream() {
-        // TODO: clean up exception handling
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (ObjectOutputStream objOut = new ObjectOutputStream(out)) {
-            objOut.writeObject(this);
-        } catch (IOException e){
-            LOGGER.error("Failed to serialize CrateInstances:", e);
-            e.printStackTrace();
-        }
-        return out.toByteArray();
     }
 
     public void setToRunning(String taskId) {

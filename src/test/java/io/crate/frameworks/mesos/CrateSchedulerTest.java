@@ -1,7 +1,6 @@
 package io.crate.frameworks.mesos;
 
-import io.crate.frameworks.mesos.config.ClusterConfiguration;
-import io.crate.frameworks.mesos.config.ResourceConfiguration;
+import io.crate.frameworks.mesos.config.Configuration;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
 import org.junit.Before;
@@ -48,15 +47,14 @@ public class CrateSchedulerTest {
     @Test
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1"));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.0"));
         when(store.state()).thenReturn(state);
         when(store.state().crateInstances()).thenReturn(instances);
-        when(store.state().desiredInstances()).thenReturn(new Observable<Integer>(0));
+        when(store.state().desiredInstances()).thenReturn(new Observable<>(0));
         CrateScheduler crateScheduler = new CrateScheduler(
                 store,
-                ResourceConfiguration.fromEnvironment(),
-                ClusterConfiguration.fromEnvironment());
-
+                new Configuration()
+        );
         crateScheduler.registered(driver, Protos.FrameworkID.getDefaultInstance(), masterInfo);
         assertThat(crateScheduler.reconcileTasks.size(), is(1));
     }
@@ -68,14 +66,12 @@ public class CrateSchedulerTest {
 
         when(store.state()).thenReturn(state);
         when(store.state().crateInstances()).thenReturn(instances);
-        when(store.state().desiredInstances()).thenReturn(new Observable<Integer>(4));
+        when(store.state().desiredInstances()).thenReturn(new Observable<>(4));
 
         Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
 
-        ResourceConfiguration resourceConfiguration = ResourceConfiguration.fromEnvironment();
-        ClusterConfiguration clusterConfiguration = ClusterConfiguration.fromEnvironment();
-
-        CrateScheduler crateScheduler = new CrateScheduler(store, resourceConfiguration, clusterConfiguration);
+        Configuration configuration = new Configuration();
+        CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
         crateScheduler.registered(driver, frameworkID, masterInfo);
 
         List<Protos.Offer> offers = new ArrayList<>();
@@ -86,7 +82,7 @@ public class CrateSchedulerTest {
                     .setHostname(idx)
                     .setSlaveId(Protos.SlaveID.newBuilder().setValue(idx))
                     .setFrameworkId(frameworkID)
-                    .addAllResources(resourceConfiguration.getAllRequiredResources()).build());
+                    .addAllResources(configuration.getAllRequiredResources()).build());
         }
 
         crateScheduler.resourceOffers(driver, offers);
