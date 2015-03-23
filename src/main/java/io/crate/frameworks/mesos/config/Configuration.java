@@ -12,6 +12,9 @@ import java.util.regex.Pattern;
 
 public class Configuration {
 
+    @Parameter(names = { "--mesos-master" })
+    String mesosMaster = "127.0.0.1:5050";
+
     @Parameter(names = { "--crate-version" }, required = true, validateWith = VersionValidator.class)
     String version;
 
@@ -39,6 +42,10 @@ public class Configuration {
     @Parameter(names = { "--resource-disk" })
     Double resDisk = 1024d;
 
+
+    public String mesosMaster() {
+        return mesosMaster;
+    }
 
     public String version() {
         return version;
