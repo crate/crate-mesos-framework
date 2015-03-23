@@ -16,8 +16,7 @@ public class CrateContainer {
     private final static String REPO = "crate";
     private final static String CMD = "crate";
 
-    private final static int HTTP_PORT = 4200;
-    private final static int TRANSPORT_PORT = 4300;
+    public final static int TRANSPORT_PORT = 4300;
 
     private final Collection<String> occupiedHosts;
     private final String clusterName;
@@ -43,10 +42,6 @@ public class CrateContainer {
 
     public String getHostname() {
         return hostname;
-    }
-
-    public TaskID taskId() {
-        return taskId;
     }
 
     private String unicastHosts() {
@@ -89,6 +84,7 @@ public class CrateContainer {
                 .setEnvironment(env)
                 .addAllArguments(asList(CMD,
                         String.format("-Des.cluster.name=%s", clusterName),
+                        String.format("-Des.http.port=%d", configuration.httpPort()),
                         String.format("-Des.node.name=%s", nodeNode),
                         String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
                         String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())

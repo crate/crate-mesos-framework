@@ -3,6 +3,7 @@ package io.crate.frameworks.mesos.config;
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import io.crate.frameworks.mesos.CrateContainer;
 import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
@@ -20,9 +21,11 @@ public class Configuration {
     @Parameter(names = { "--crate-node-count" })
     Integer nodeCount = 0;
 
+    @Parameter(names = { "--crate-http-port" })
+    Integer httpPort = 4200;
+
     @Parameter(names = { "--api-port" })
     Integer apiPort = 4040;
-
 
     @Parameter(names = { "--resource-cpus" })
     Double resCpus = 0.5d;
@@ -49,6 +52,10 @@ public class Configuration {
         return nodeCount;
     }
 
+    public Integer httpPort() {
+        return httpPort;
+    }
+
     public Double resourcesCpus() {
         return resCpus;
     }
@@ -72,8 +79,9 @@ public class Configuration {
     public Iterable<? extends Protos.Resource> getAllRequiredResources() {
         return Arrays.asList(
                 SaneProtos.cpus(resCpus),
-                SaneProtos.mem(resMemory)
-                // TODO: port requirement: taskBuilder.addResources(ports(4200, 4200, "crate"));
+                SaneProtos.mem(resMemory),
+                SaneProtos.ports(httpPort, httpPort, "*"),
+                SaneProtos.ports(CrateContainer.TRANSPORT_PORT, CrateContainer.TRANSPORT_PORT, "*")
         );
     }
 
