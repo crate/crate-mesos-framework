@@ -130,7 +130,7 @@ public class CrateScheduler implements Scheduler {
             LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
             return null;
         }
-        CrateContainer container = new CrateContainer(
+        CrateExecutableInfo container = new CrateExecutableInfo(
                 configuration,
                 offer.getHostname(),
                 crateInstances.hosts()

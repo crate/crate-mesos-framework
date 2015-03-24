@@ -5,15 +5,18 @@ import com.google.common.base.Joiner;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 import static java.util.Arrays.asList;
 
-public class CrateContainer {
+public class CrateExecutableInfo {
 
-    private final static String REPO = "crate";
+    private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutableInfo.class);
+    private final static String CDN_URL = "https://cdn.crate.io/downloads/releases";
     private final static String CMD = "crate";
 
     public final static int TRANSPORT_PORT = 4300;
@@ -22,22 +25,28 @@ public class CrateContainer {
     private final String clusterName;
 
     private final String hostname;
-    private final String imageName;
+    private final CommandInfo.URI downloadURI;
     private final TaskID taskId;
     private final String nodeNode;
     private final Configuration configuration;
 
-    public CrateContainer(Configuration configuration,
-                          String hostname,
-                          Collection<String> occupiedHosts) {
-        UUID id = UUID.randomUUID();
+    public CrateExecutableInfo(Configuration configuration,
+                               String hostname,
+                               Collection<String> occupiedHosts) {
         this.configuration = configuration;
         this.occupiedHosts = occupiedHosts;
-        this.taskId = taskID(id.toString());
+        this.taskId = generateTaskId();
         this.clusterName = configuration.clusterName();
         this.hostname = hostname;
-        this.imageName = String.format("%s:%s", REPO, configuration.version());
-        this.nodeNode = String.format("%s-%s", this.clusterName, id);
+        this.downloadURI = CommandInfo.URI.newBuilder()
+                .setValue(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version()))
+                .setExtract(true)
+                .build();
+        this.nodeNode = String.format("%s-%s", this.clusterName, taskId.getValue());
+    }
+
+    private TaskID generateTaskId() {
+        return taskID(UUID.randomUUID().toString());
     }
 
     public String getHostname() {
@@ -65,30 +74,23 @@ public class CrateContainer {
                 ))
                 .build();
 
-        // docker image info
-        ContainerInfo.DockerInfo dockerInfo = ContainerInfo.DockerInfo.newBuilder()
-                .setImage(imageName)
-                .setNetwork(ContainerInfo.DockerInfo.Network.HOST)
-                .setPrivileged(true)
-                .build();
 
-        // container info
-        ContainerInfo containerInfo = ContainerInfo.newBuilder()
-                .setType(ContainerInfo.Type.DOCKER)
-                .setDocker(dockerInfo)
-                .build();
+        List<String> args = asList(
+                String.format("-Des.cluster.name=%s", clusterName),
+                String.format("-Des.http.port=%d", configuration.httpPort()),
+                String.format("-Des.node.name=%s", nodeNode),
+                String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
+                String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())
+        );
+        String command = String.format("cd crate-* && bin/crate %s", Joiner.on(" ").join(args));
+        LOGGER.debug("Launch Crate with command: {}", command);
 
         // command info
         CommandInfo cmd = CommandInfo.newBuilder()
-                .setShell(false)
+                .addAllUris(asList(downloadURI))
+                .setShell(true)
                 .setEnvironment(env)
-                .addAllArguments(asList(CMD,
-                        String.format("-Des.cluster.name=%s", clusterName),
-                        String.format("-Des.http.port=%d", configuration.httpPort()),
-                        String.format("-Des.node.name=%s", nodeNode),
-                        String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
-                        String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())
-                ))
+                .setValue(command)
                 .build();
 
         // create task to run
@@ -96,7 +98,6 @@ public class CrateContainer {
                 .setName(clusterName)
                 .setTaskId(taskId)
                 .setSlaveId(offer.getSlaveId())
-                .setContainer(containerInfo)
                 .setCommand(cmd);
 
         taskBuilder.addAllResources(configuration.getAllRequiredResources());
