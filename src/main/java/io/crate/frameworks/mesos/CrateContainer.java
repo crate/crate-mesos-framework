@@ -93,7 +93,7 @@ public class CrateContainer {
 
         // create task to run
         TaskInfo.Builder taskBuilder = TaskInfo.newBuilder()
-                .setName("task " + taskId.getValue())
+                .setName(clusterName)
                 .setTaskId(taskId)
                 .setSlaveId(offer.getSlaveId())
                 .setContainer(containerInfo)

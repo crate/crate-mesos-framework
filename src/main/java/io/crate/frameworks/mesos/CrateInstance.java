@@ -40,4 +40,14 @@ public class CrateInstance implements Serializable {
     public String version() {
         return version;
     }
+
+    @Override
+    public String toString() {
+        return "CrateInstance{" +
+                "taskId='" + taskId + '\'' +
+                ", hostname='" + hostname + '\'' +
+                ", version='" + version + '\'' +
+                ", state=" + state +
+                '}';
+    }
 }
