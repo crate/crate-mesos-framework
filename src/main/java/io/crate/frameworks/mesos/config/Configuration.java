@@ -3,7 +3,7 @@ package io.crate.frameworks.mesos.config;
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import io.crate.frameworks.mesos.CrateContainer;
+import io.crate.frameworks.mesos.CrateExecutableInfo;
 import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
@@ -88,7 +88,7 @@ public class Configuration {
                 SaneProtos.cpus(resCpus),
                 SaneProtos.mem(resMemory),
                 SaneProtos.ports(httpPort, httpPort, "*"),
-                SaneProtos.ports(CrateContainer.TRANSPORT_PORT, CrateContainer.TRANSPORT_PORT, "*")
+                SaneProtos.ports(CrateExecutableInfo.TRANSPORT_PORT, CrateExecutableInfo.TRANSPORT_PORT, "*")
         );
     }
 

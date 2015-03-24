@@ -46,7 +46,7 @@ public class Main {
 
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("CrateFramework")
-                .setUser("root")
+                .setUser("")
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
         PersistentStateStore stateStore = new PersistentStateStore(
