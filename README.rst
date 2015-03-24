@@ -86,6 +86,20 @@ You can resize the cluster by setting the number of desired instances::
     curl -X POST -H "Content-Type: application/json" localhost:4040/cluster/resize -d '{"instances": 5}'
 
 
+Service Discovery for Applications using DNS
+--------------------------------------------
+
+In order for applications to discover the Crate nodes `Mesos-DNS`_ can be used.
+
+If `Mesos-DNS` is running it will automatically retrieve information about the
+instances launched by the Crate framework and then the client applications can
+connect to the crate cluster using the following URL:
+``<cluster-name>.crateframework.<domain>:<http-port>``
+
+Both ``<cluster-name>`` and ``<http-port`` are options that can be specified
+when the Mesos Crate Framework is launched. The ``<domain>`` is part of the
+Mesos-DNS configuration.
+
 Are you a Developer?
 --------------------
 
@@ -95,3 +109,4 @@ To do so, please refer to ``DEVELOP.rst`` for further information.
 
 .. _Crate: https://github.com/crate/crate
 .. _Mesos: http://mesos.apache.org
+.. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/

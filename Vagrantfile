@@ -14,7 +14,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.network "forwarded_port", guest: 2181, host: 2181
     config.vm.network "forwarded_port", guest: 4200, host: 4200
     config.vm.network "forwarded_port", guest: 4040, host: 4040
-    config.vm.provision "shell", path: "vagrant_up.sh"
+    config.vm.provision "shell", path: "vagrant/vagrant_up.sh"
 
     config.vm.provider "virtualbox" do |v|
         v.memory = 2560

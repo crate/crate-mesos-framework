@@ -1,0 +1,6 @@
+{
+    "zk": "zk://localhost:2181/mesos",
+    "masters": ["localhost:5050"],
+    "domain": "mesos",
+    "resolvers": ["10.0.2.3"]
+}

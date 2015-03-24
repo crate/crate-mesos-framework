@@ -1,0 +1,14 @@
+[Unit]
+Description=Mesos DNS
+After=network.target zookeeper.service
+Wants=zookeeper.service
+
+[Service]
+Restart=on-failure
+ExecStartPre=/usr/bin/sh -c "echo 'nameserver 127.0.0.1' > /etc/resolv.conf"
+ExecStart=/home/vagrant/go/src/github.com/mesosphere/mesos-dns/mesos-dns -config=/etc/mesos-dns.json
+ExecStopPost=/usr/bin/sh -c "echo 'nameserver 10.0.2.3' > /etc/resolv.conf"
+User=root
+
+[Install]
+WantedBy=default.target
