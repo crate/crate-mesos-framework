@@ -96,7 +96,7 @@ public class Main {
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMaster);
         }
 
-        CrateHttpService api = new CrateHttpService(stateStore, configuration.apiPort());
+        CrateHttpService api = new CrateHttpService(stateStore, configuration);
         api.start();
         int status = driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1;
 
