@@ -22,8 +22,6 @@ public class Main {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
-    private static final String ZK_URL = "localhost:2181";
-
     private static final Set<String> HELP_OPTIONS = Sets.newHashSet("-h", "--help", "help");
 
     public static void main(String[] args) throws Exception {
@@ -50,7 +48,7 @@ public class Main {
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
         PersistentStateStore stateStore = new PersistentStateStore(
-                new ZooKeeperState(ZK_URL, 20_000, TimeUnit.MILLISECONDS,
+                new ZooKeeperState(configuration.zookeeper(), 20_000, TimeUnit.MILLISECONDS,
                         String.format("/crate-mesos/%s", configuration.clusterName())),
                 configuration.nodeCount());
 

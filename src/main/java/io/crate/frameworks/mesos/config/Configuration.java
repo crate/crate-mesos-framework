@@ -15,6 +15,9 @@ public class Configuration {
     @Parameter(names = { "--mesos-master" })
     String mesosMaster = "127.0.0.1:5050";
 
+    @Parameter(names = { "--zookeeper" })
+    String zookeeper = "localhost:2181";
+
     @Parameter(names = { "--crate-version" }, required = true, validateWith = VersionValidator.class)
     String version;
 
@@ -45,6 +48,10 @@ public class Configuration {
 
     public String mesosMaster() {
         return mesosMaster;
+    }
+
+    public String zookeeper() {
+        return zookeeper;
     }
 
     public String version() {

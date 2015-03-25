@@ -47,14 +47,18 @@ And submit it to a running Marathon master::
 
     curl -s -XPOST http://localhost:8080/v2/apps -d@CrateFramework.json -H "Content-Type: application/json"
 
-    
+
 Command Line Options
 --------------------
 
 =========================== ============== =================
 OPTION                       REQUIRED       DEFAULT
 =========================== ============== =================
-``--crate-version``         true           
+``--crate-version``         true
+--------------------------- -------------- -----------------
+``--mesos-master``          false          localhost:5050
+--------------------------- -------------- -----------------
+``--zookeeper``             false          localhost:2181
 --------------------------- -------------- -----------------
 ``--crate-cluster-name``    false          crate
 --------------------------- -------------- -----------------
@@ -99,6 +103,7 @@ connect to the crate cluster using the following URL:
 Both ``<cluster-name>`` and ``<http-port`` are options that can be specified
 when the Mesos Crate Framework is launched. The ``<domain>`` is part of the
 Mesos-DNS configuration.
+
 
 Are you a Developer?
 --------------------
