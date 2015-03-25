@@ -105,6 +105,78 @@ when the Mesos Crate Framework is launched. The ``<domain>`` is part of the
 Mesos-DNS configuration.
 
 
+Run Multiple Crate Clusters using Marathon
+------------------------------------------
+
+One Crate Framework can only be used to manage one crate cluster.In order to be
+able to manage multiple crate clusters it is possible to run the crate
+framework multiple times.
+
+The easiest and recommended way to do so is to deploy the Crate Framework using
+Marathon. This also has the advantage that the Crate Framework itself will be
+HA.
+
+
+In order to deploy something on Marathon create a json file. For example
+``crate-mesos.json`` with the following content::
+
+    {
+        "id": "crate-demo",
+        "instances": 1,
+        "cpus": 0.25,
+        "mem": 50,
+        "ports": [4040],
+        "cmd": "java -Djava.library.path=/usr/local/lib -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --mesos-master mesos-master-1:5050,mesos-master-2:5050,mesos-master-3:5050 --crate-cluster-name crate-demo --crate-version 0.47.7 --api-port $PORT0",
+        "healthChecks": [
+            {
+                "protocol": "HTTP",
+                "path": "/cluster",
+                "gracePeriodSeconds": 3,
+                "intervalSeconds": 10,
+                "portIndex": 0,
+                "timeoutSeconds": 10,
+                "maxConsecutiveFailures": 3
+            }
+        ]
+    }
+
+
+In order to instruct marathon to deploy the crate framework curl can then be used::
+
+    curl -s -XPOST http://marathon-url:8080/v2/apps -d@crate-mesos.json -H "Content-Type: application/json"
+
+If `Mesos-DNS`_ is available the launched Crate Framework can then be accessed
+using ``crate-demo.marathon.mesos``. Where ``crate-demo`` is the id specified in
+the ``crate-mesos.json`` and ``mesos`` is the configured `Mesos-DNS`_ domain.
+
+
+.. note::
+
+    The defined port (4040) must be available. Either extend the ports
+    definitions in `/etc/mesos-slave/resources` or use a dynamic port (setting
+    ports to [0]).
+
+    Mesos-DNS also serves SRV records which can also be queried to discover on
+    which port the API is listening::
+
+        nslookup -querytype=srv _crate-demo._tcp.marathon.mesos
+
+Now for each additional cluster an additional "crate framework app" can be
+deployed using Marathon. Keep in mind that each cluster should have its unique
+ports so the port configuration options should be set in each clusters ``cmd``
+definition.
+
+.. warning::
+
+    Current limitations:
+
+    - Transport port cannot be configured. So it is only possible to run 1 crate
+      instance per node even if there are multiple clusters.
+
+    - As there is no official crate-mesos release yet the jar file isn't hosted
+      but needs to be built locally and somehow copied to the slaves.
+
+
 Are you a Developer?
 --------------------
 
