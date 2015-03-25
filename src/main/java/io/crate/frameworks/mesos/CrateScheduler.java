@@ -5,17 +5,23 @@ import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 
 public class CrateScheduler implements Scheduler {
+
+    private String hostIP;
 
     private class InstancesObserver implements Observer<Integer> {
         private SchedulerDriver driver;
@@ -54,6 +60,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
+        hostIP = hostIp(masterInfo);
         CrateState state = stateStore.state();
 
         state.frameworkId(frameworkID.getValue());
@@ -68,6 +75,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framwork. Starting task reconciliation.");
+        hostIP = hostIp(masterInfo);
         CrateState state = stateStore.state();
         crateInstances = state.crateInstances();
         instancesObserver.driver(driver);
@@ -96,7 +104,6 @@ public class CrateScheduler implements Scheduler {
         } else {
             LOGGER.debug("Missing instances: {}", required);
 
-
             int launched = 0;
             for (Protos.Offer offer : offers) {
                 if (launched == required) {
@@ -104,25 +111,62 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                Protos.TaskInfo taskInfo = tryToObtainTaskInfo(offer, offer.getAttributesList());
-                if (taskInfo == null) {
+                Protos.TaskInfo crateInfo = obtainCrateInfo(offer, offer.getAttributesList());
+                if (crateInfo == null) {
                     driver.declineOffer(offer.getId());
                 } else {
+                    Protos.TaskID taskId = taskID(UUID.randomUUID().toString());
+                    Protos.TaskInfo taskInfo = Protos.TaskInfo.newBuilder()
+                            .setName(configuration.clusterName)
+                            .setTaskId(taskId)
+                            .setData(crateInfo.toByteString())
+                            .setExecutor(createExecutor())
+                            .setSlaveId(offer.getSlaveId())
+                            .addAllResources(configuration.getAllRequiredResources())
+                            .build();
+
+                    crateInstances.addInstance(new CrateInstance(
+                            offer.getHostname(),
+                            taskId.getValue(),
+                            configuration.version,
+                            configuration.transportPort
+                    ));
                     state.instances(crateInstances);
-                    stateStore.save();
 
                     Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
                     driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(taskInfo), filters);
-                    LOGGER.info("Adding task ... {}", taskInfo.getTaskId().getValue());
-
+                    LOGGER.info("Submitted task ... {}", taskInfo.getTaskId().getValue());
                     launched++;
                 }
             }
+            stateStore.save();
         }
 
     }
 
-    private Protos.TaskInfo tryToObtainTaskInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
+    @NotNull
+    private Protos.ExecutorInfo createExecutor() {
+        final String jar = "crate-mesos.jar";
+        String path = String.format("http://%s:%d/static/%s", hostIP, configuration.apiPort, jar);
+        Protos.CommandInfo cmd = Protos.CommandInfo.newBuilder()
+                .addUris(Protos.CommandInfo.URI.newBuilder().setValue(path).setExtract(false).build())
+                .setValue(String.format("java -cp %s io.crate.frameworks.mesos.CrateExecutor", jar))
+                .build();
+
+        return Protos.ExecutorInfo.newBuilder()
+                .setName("Crate Executor")
+                .setExecutorId(
+                        Protos.ExecutorID.newBuilder()
+                                .setValue(UUID.randomUUID().toString())
+                                .build()
+                )
+                .setCommand(cmd)
+                .addAllResources(configuration.getAllRequiredResources())
+                .build();
+
+    }
+
+    private Protos.TaskInfo obtainCrateInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
         if (crateInstances.anyOnHost(offer.getHostname())) {
             LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
             return null;
@@ -136,14 +180,7 @@ public class CrateScheduler implements Scheduler {
                 offer.getHostname(),
                 crateInstances
         );
-        Protos.TaskInfo taskInfo = container.taskInfo(offer, attributes);
-        crateInstances.addInstance(new CrateInstance(
-                container.getHostname(),
-                taskInfo.getTaskId().getValue(),
-                configuration.version,
-                configuration.transportPort
-        ));
-        return taskInfo;
+        return container.taskInfo(offer, attributes);
     }
 
     private void declineAllOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
@@ -153,6 +190,7 @@ public class CrateScheduler implements Scheduler {
     }
 
     private void killInstances(SchedulerDriver driver, int toKill) {
+        if (toKill == 0) return;
         int killed = 0;
         // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
         LOGGER.info("Too many instances running. Killing {} tasks", toKill);
@@ -214,6 +252,7 @@ public class CrateScheduler implements Scheduler {
             case TASK_FAILED:
             case TASK_KILLED:
             case TASK_FINISHED:
+            case TASK_ERROR:
                 LOGGER.debug("remove task ...");
                 crateInstances.removeTask(taskId);
                 break;
@@ -242,11 +281,11 @@ public class CrateScheduler implements Scheduler {
         LOGGER.info("asking for more resources for {} more instances", instancesMissing);
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
-            Protos.Request r = Protos.Request.newBuilder()
-                    .addAllResources(configuration.getAllRequiredResources())
-                    .build();
-            LOGGER.debug("add resource request {}", r.toString());
-            requests.add(r);
+            requests.add(
+                    Protos.Request.newBuilder()
+                            .addAllResources(configuration.getAllRequiredResources())
+                            .build()
+            );
         }
         driver.requestResources(requests);
     }
@@ -294,5 +333,24 @@ public class CrateScheduler implements Scheduler {
         }
     }
 
+    private static String hostIp(Protos.MasterInfo masterInfo) {
+        String ip = null;
+        try {
+            ip = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            ip = "127.0.0.1";
+        }
+        return ip;
+    }
+
+    public static String intToIp(int i) {
+        return String.format("%d.%d.%d.%d",
+                ((i >> 24 ) & 0xFF),
+                ((i >> 16 ) & 0xFF),
+                ((i >> 8 ) & 0xFF),
+                ( i & 0xFF)
+        );
+    }
 }
 
