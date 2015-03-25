@@ -97,8 +97,7 @@ public class CrateExecutableInfo {
 
 
         List<String> args = genArgs(attributes);
-        String command = String.format("cd crate-* && bin/crate %s", Joiner.on(" ").join(args));
-        LOGGER.debug("Launch Crate with command: {}", command);
+        String command = String.format("bin/crate %s", Joiner.on(" ").join(args));
 
         // command info
         CommandInfo cmd = CommandInfo.newBuilder()
