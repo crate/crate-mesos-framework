@@ -10,9 +10,12 @@ First, the jar file needs to be built from source::
 
     ./gradlew fatJar
 
-and then copied to the Mesos master instance.
+The framework can be deployed in two ways: (1) executing the jar file from the
+command line and (2) launching it via Marathon.
 
-The framework can be deployed in two ways: (1) executing the jar file from the command line and (2) launching it via Marathon.
+If the framework is deployed using Marathon the jar needs to be copied to the
+mesos-slaves. Otherwise it needs to be copied to the mesos-master from where it
+is launched using the command line.
 
 In both cases the ``Main`` method requires a ``--crate-version`` argument,
 which is the Crate version that should be used.
@@ -42,6 +45,16 @@ Create a Marathon configuration file::
       "env": {},
       "cmd": "java -Djava.library.path=/usr/local/lib -jar /path/to/crate-mesos.jar --crate-version 0.x.x [OPTIONS]"
     }
+
+For this to work ``java`` needs to be available on the mesos-slave. If ``java``
+isn't available it can be included as dependency in the Marathon configuration
+file by listing it in  ``uris`` and by changing the ``cmd``::
+
+    "uris": [
+        "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz"
+    ],
+    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /path/to/crate-mesos.jar crate-version 0.47.7",
+
 
 And submit it to a running Marathon master::
 
