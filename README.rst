@@ -77,6 +77,8 @@ OPTION                       REQUIRED       DEFAULT
 --------------------------- -------------- -----------------
 ``--crate-http-port``       false          4200
 --------------------------- -------------- -----------------
+``--crate-transport-port``  false          4300
+--------------------------- -------------- -----------------
 ``--api-port``              false          4040
 --------------------------- -------------- -----------------
 ``--resource-cpus``         false          0.5
@@ -182,9 +184,6 @@ definition.
 .. warning::
 
     Current limitations:
-
-    - Transport port cannot be configured. So it is only possible to run 1 crate
-      instance per node even if there are multiple clusters.
 
     - As there is no official crate-mesos release yet the jar file isn't hosted
       but needs to be built locally and somehow copied to the slaves.

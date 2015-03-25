@@ -133,13 +133,14 @@ public class CrateScheduler implements Scheduler {
         CrateExecutableInfo container = new CrateExecutableInfo(
                 configuration,
                 offer.getHostname(),
-                crateInstances.hosts()
+                crateInstances
         );
         Protos.TaskInfo taskInfo = container.taskInfo(offer);
         crateInstances.addInstance(new CrateInstance(
                 container.getHostname(),
                 taskInfo.getTaskId().getValue(),
-                configuration.version()
+                configuration.version,
+                configuration.transportPort
         ));
         return taskInfo;
     }
@@ -186,9 +187,9 @@ public class CrateScheduler implements Scheduler {
                         CrateInstance instance = crateInstances.byTaskId(taskId);
                         if (instance == null) {
                             LOGGER.error("Got a task for an instance that isn't tracked. HELP :(");
-                        } else if (!instance.version().equals(configuration.version())) {
+                        } else if (!instance.version().equals(configuration.version)) {
                             LOGGER.info("Running instance has version {}. Configured is {}. Will change configuration to {}",
-                                    instance.version(), configuration.version(), instance.version()
+                                    instance.version(), configuration.version, instance.version()
                             );
                             configuration.version(instance.version());
                         }

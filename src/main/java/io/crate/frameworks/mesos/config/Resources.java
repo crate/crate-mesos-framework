@@ -18,14 +18,14 @@ public class Resources {
         });
 
         Protos.Resource cpus1 = resourceMap.get("cpus");
-        if (cpus1.getScalar().getValue() < configuration.resourcesCpus()) {
+        if (cpus1.getScalar().getValue() < configuration.resCpus) {
             return false;
         }
 
         Protos.Resource mem = resourceMap.get("mem");
 
         //noinspection RedundantIfStatement
-        if (mem.getScalar().getValue() < configuration.resourcesMemory()) {
+        if (mem.getScalar().getValue() < configuration.resMemory) {
             return false;
         }
         return true;

@@ -42,28 +42,28 @@ public class CrateRestResource {
             public Object getMessage() {
                 return new HashMap<String, Object>(){
                     {
-                        put("mesosMaster", conf.mesosMaster());
+                        put("mesosMaster", conf.mesosMaster);
                         put("cluster", new HashMap<String, Object>(){
                             {
-                                put("version", conf.version());
-                                put("clusterName", conf.clusterName());
-                                put("httpPort", conf.httpPort());
+                                put("version", conf.version);
+                                put("clusterName", conf.clusterName);
+                                put("httpPort", conf.httpPort);
                                 put("desiredInstances", desired);
                                 put("runningInstances", running);
-                                put("nodeCount", conf.nodeCount());
+                                put("nodeCount", conf.nodeCount);
                             }
                         });
                         put("resources", new HashMap<String, Double>(){
                             {
-                                put("memory", conf.resourcesMemory());
-                                put("heap", conf.resourcesHeap());
-                                put("cpus", conf.resourcesCpus());
-                                put("disk", conf.resourcesDisk());
+                                put("memory", conf.resMemory);
+                                put("heap", conf.resHeap);
+                                put("cpus", conf.resCpus);
+                                put("disk", conf.resDisk);
                             }
                         });
                         put("api", new HashMap<String, Integer>(){
                             {
-                                put("apiPort", conf.apiPort());
+                                put("apiPort", conf.apiPort);
                             }
                         });
                     }

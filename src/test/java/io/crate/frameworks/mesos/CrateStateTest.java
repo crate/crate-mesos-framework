@@ -28,8 +28,8 @@ public class CrateStateTest {
     public void testSerializeCrateStateWithInstances() throws Throwable {
         CrateState state = new CrateState();
         CrateInstances cluster = new CrateInstances();
-        cluster.addInstance(new CrateInstance("127.0.0.1", "1", "0.47.0"));
-        cluster.addInstance(new CrateInstance("127.0.0.2", "2", "0.47.0"));
+        cluster.addInstance(new CrateInstance("127.0.0.1", "1", "0.47.0", 4300));
+        cluster.addInstance(new CrateInstance("127.0.0.2", "2", "0.47.0", 4300));
         cluster.setToRunning("1");
         state.instances(cluster);
 

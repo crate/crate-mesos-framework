@@ -7,6 +7,7 @@ public class CrateInstance implements Serializable {
     private final String taskId;
     private final String hostname;
     private final String version;
+    private final int transportPort;
     private State state;
 
     public enum State implements Serializable {
@@ -14,10 +15,11 @@ public class CrateInstance implements Serializable {
         RUNNING
     }
 
-    public CrateInstance(String hostname, String taskId, String version) {
+    public CrateInstance(String hostname, String taskId, String version, int transportPort) {
         this.taskId = taskId;
         this.hostname = hostname;
         this.version = version;
+        this.transportPort = transportPort;
         state = State.PENDING;
     }
 
@@ -41,12 +43,17 @@ public class CrateInstance implements Serializable {
         return version;
     }
 
+    public int transportPort() {
+        return transportPort;
+    }
+
     @Override
     public String toString() {
         return "CrateInstance{" +
                 "taskId='" + taskId + '\'' +
                 ", hostname='" + hostname + '\'' +
                 ", version='" + version + '\'' +
+                ", transportPort=" + transportPort +
                 ", state=" + state +
                 '}';
     }

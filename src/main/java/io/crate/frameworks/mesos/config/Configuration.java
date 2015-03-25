@@ -3,7 +3,6 @@ package io.crate.frameworks.mesos.config;
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import io.crate.frameworks.mesos.CrateExecutableInfo;
 import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
@@ -13,98 +12,61 @@ import java.util.regex.Pattern;
 public class Configuration {
 
     @Parameter(names = { "--mesos-master" })
-    String mesosMaster = "127.0.0.1:5050";
+    public String mesosMaster = "127.0.0.1:5050";
 
     @Parameter(names = { "--zookeeper" })
-    String zookeeper = "localhost:2181";
+    public String zookeeper = "localhost:2181";
 
     @Parameter(names = { "--crate-version" }, required = true, validateWith = VersionValidator.class)
-    String version;
+    public String version;
 
     @Parameter(names = { "--crate-cluster-name" })
-    String clusterName = "crate";
+    public String clusterName = "crate";
 
     @Parameter(names = { "--crate-node-count" })
-    Integer nodeCount = 0;
+    public Integer nodeCount = 0;
 
     @Parameter(names = { "--crate-http-port" })
-    Integer httpPort = 4200;
+    public Integer httpPort = 4200;
+
+    @Parameter(names = { "--crate-transport-port" })
+    public Integer transportPort = 4300;
 
     @Parameter(names = { "--api-port" })
-    Integer apiPort = 4040;
+    public Integer apiPort = 4040;
 
     @Parameter(names = { "--resource-cpus" })
-    Double resCpus = 0.5d;
+    public Double resCpus = 0.5d;
 
     @Parameter(names = { "--resource-memory" })
-    Double resMemory = 512d;
+    public Double resMemory = 512d;
 
     @Parameter(names = { "--resource-heap" })
-    Double resHeap = 256d;
+    public Double resHeap = 256d;
 
     @Parameter(names = { "--resource-disk" })
-    Double resDisk = 1024d;
+    public Double resDisk = 1024d;
 
-
-    public String mesosMaster() {
-        return mesosMaster;
-    }
-
-    public String zookeeper() {
-        return zookeeper;
-    }
-
-    public String version() {
-        return version;
-    }
-
-    public String clusterName() {
-        return clusterName;
-    }
-
-    public Integer nodeCount() {
-        return nodeCount;
-    }
-
-    public Integer httpPort() {
-        return httpPort;
-    }
-
-    public Double resourcesCpus() {
-        return resCpus;
-    }
-
-    public Double resourcesMemory() {
-        return resMemory;
-    }
-
-    public Double resourcesHeap() {
-        return resHeap;
-    }
-
-    public Double resourcesDisk() {
-        return resDisk;
-    }
-
-    public Integer apiPort() {
-        return apiPort;
-    }
 
     public Iterable<? extends Protos.Resource> getAllRequiredResources() {
         return Arrays.asList(
                 SaneProtos.cpus(resCpus),
                 SaneProtos.mem(resMemory),
                 SaneProtos.ports(httpPort, httpPort, "*"),
-                SaneProtos.ports(CrateExecutableInfo.TRANSPORT_PORT, CrateExecutableInfo.TRANSPORT_PORT, "*")
+                SaneProtos.ports(transportPort, transportPort, "*")
         );
     }
 
     @Override
     public String toString() {
         return "Configuration{" +
-                "version='" + version + '\'' +
+                "mesosMaster='" + mesosMaster + '\'' +
+                ", zookeeper='" + zookeeper + '\'' +
+                ", version='" + version + '\'' +
                 ", clusterName='" + clusterName + '\'' +
                 ", nodeCount=" + nodeCount +
+                ", httpPort=" + httpPort +
+                ", transportPort=" + transportPort +
                 ", apiPort=" + apiPort +
                 ", resCpus=" + resCpus +
                 ", resMemory=" + resMemory +

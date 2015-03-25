@@ -19,9 +19,6 @@ public class CrateExecutableInfo {
     private final static String CDN_URL = "https://cdn.crate.io/downloads/releases";
     private final static String CMD = "crate";
 
-    public final static int TRANSPORT_PORT = 4300;
-
-    private final Collection<String> occupiedHosts;
     private final String clusterName;
 
     private final String hostname;
@@ -29,17 +26,18 @@ public class CrateExecutableInfo {
     private final TaskID taskId;
     private final String nodeNode;
     private final Configuration configuration;
+    private final CrateInstances crateInstances;
 
     public CrateExecutableInfo(Configuration configuration,
                                String hostname,
-                               Collection<String> occupiedHosts) {
+                               CrateInstances crateInstances) {
         this.configuration = configuration;
-        this.occupiedHosts = occupiedHosts;
+        this.crateInstances = crateInstances;
         this.taskId = generateTaskId();
-        this.clusterName = configuration.clusterName();
+        this.clusterName = configuration.clusterName;
         this.hostname = hostname;
         this.downloadURI = CommandInfo.URI.newBuilder()
-                .setValue(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version()))
+                .setValue(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version))
                 .setExtract(true)
                 .build();
         this.nodeNode = String.format("%s-%s", this.clusterName, taskId.getValue());
@@ -54,11 +52,22 @@ public class CrateExecutableInfo {
     }
 
     private String unicastHosts() {
-        List<String> hosts = new ArrayList<>();
-        for (String occupiedHost : occupiedHosts) {
-            hosts.add(String.format("%s:%s", occupiedHost, TRANSPORT_PORT));
+        List<String> hosts = new ArrayList<>(crateInstances.size());
+        for (CrateInstance crateInstance : crateInstances) {
+            hosts.add(String.format("%s:%s", crateInstance.hostname(), crateInstance.transportPort()));
         }
         return Joiner.on(",").join(hosts);
+    }
+
+    List<String> genArgs() {
+        return asList(
+                String.format("-Des.cluster.name=%s", clusterName),
+                String.format("-Des.http.port=%d", configuration.httpPort),
+                String.format("-Des.transport.tcp.port=%d", configuration.transportPort),
+                String.format("-Des.node.name=%s", nodeNode),
+                String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
+                String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())
+        );
     }
 
     public TaskInfo taskInfo(Offer offer) {
@@ -69,19 +78,13 @@ public class CrateExecutableInfo {
                 .addAllVariables(Arrays.<Environment.Variable>asList(
                         Environment.Variable.newBuilder()
                                 .setName("CRATE_HEAP_SIZE")
-                                .setValue(String.format("%sm", configuration.resourcesHeap().longValue()))
+                                .setValue(String.format("%sm", configuration.resHeap.longValue()))
                                 .build()
                 ))
                 .build();
 
 
-        List<String> args = asList(
-                String.format("-Des.cluster.name=%s", clusterName),
-                String.format("-Des.http.port=%d", configuration.httpPort()),
-                String.format("-Des.node.name=%s", nodeNode),
-                String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
-                String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())
-        );
+        List<String> args = genArgs();
         String command = String.format("cd crate-* && bin/crate %s", Joiner.on(" ").join(args));
         LOGGER.debug("Launch Crate with command: {}", command);
 

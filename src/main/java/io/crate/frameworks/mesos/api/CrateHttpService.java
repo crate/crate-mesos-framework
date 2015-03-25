@@ -19,7 +19,7 @@ public class CrateHttpService {
         ResourceConfig httpConf = new ResourceConfig()
                 .register(new CrateRestResource(crateState, conf))
                 .packages(PACKAGE_NAMESPACE);
-        URI httpUri = URI.create(String.format("http://0.0.0.0:%d/", conf.apiPort()));
+        URI httpUri = URI.create(String.format("http://0.0.0.0:%d/", conf.apiPort));
         server = GrizzlyHttpServerFactory.createHttpServer(httpUri, httpConf);
     }
 

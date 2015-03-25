@@ -48,9 +48,9 @@ public class Main {
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
         PersistentStateStore stateStore = new PersistentStateStore(
-                new ZooKeeperState(configuration.zookeeper(), 20_000, TimeUnit.MILLISECONDS,
-                        String.format("/crate-mesos/%s", configuration.clusterName())),
-                configuration.nodeCount());
+                new ZooKeeperState(configuration.zookeeper, 20_000, TimeUnit.MILLISECONDS,
+                        String.format("/crate-mesos/%s", configuration.clusterName)),
+                configuration.nodeCount);
 
         Optional<String> frameworkId = stateStore.state().frameworkId();
         if (frameworkId.isPresent()) {
@@ -67,7 +67,7 @@ public class Main {
         // create the driver
         MesosSchedulerDriver driver;
 
-        String mesosMaster = configuration.mesosMaster();
+        String mesosMaster = configuration.mesosMaster;
 
         if (System.getenv("MESOS_AUTHENTICATE") != null) {
             System.out.println("Enabling authentication for the framework");

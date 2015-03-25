@@ -49,7 +49,7 @@ public class CrateSchedulerTest {
     @Test
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.0"));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.0", 4300));
         state.desiredInstances(0);
         state.instances(instances);
 
@@ -90,7 +90,7 @@ public class CrateSchedulerTest {
     public void testReconcileTasksWithDifferentVersionAlreadyRunning() throws Exception {
         // configured version should be changed to the version of the running instance
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.7"));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.7", 4300));
         state.instances(instances);
 
         Configuration configuration = new Configuration();
@@ -103,7 +103,7 @@ public class CrateSchedulerTest {
                         .setTaskId(taskID("1"))
                         .setState(Protos.TaskState.TASK_RUNNING).build());
 
-        assertThat(configuration.version(), is("0.47.7"));
+        assertThat(configuration.version, is("0.47.7"));
     }
 
     private CrateScheduler initScheduler(Configuration configuration, String frameworkID) {
