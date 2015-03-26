@@ -83,6 +83,10 @@ OPTION                       REQUIRED       DEFAULT
 --------------------------- -------------- -----------------------
 ``--crate-transport-port``  false          4300
 --------------------------- -------------- -----------------------
+``--crate-data-path``       false          not set
+--------------------------- -------------- -----------------------
+``--crate-blob-path``       false          not set
+--------------------------- -------------- -----------------------
 ``--api-port``              false          4040
 --------------------------- -------------- -----------------------
 ``--resource-cpus``         false          0.5
@@ -95,7 +99,20 @@ OPTION                       REQUIRED       DEFAULT
 =========================== ============== =======================
 
 
-Crate options
+Persistent Data Paths
+---------------------
+
+Crate has 2 options for persistent data paths: one for data (tables) and one
+for blobs.
+
+You can specify both paths (``--crate-data-path``, ``--crate-blob-path``) when
+starting the framework.
+
+If the paths are specified, the executor will check if the path exists on the
+slave. If the path does not exist, the executor won't start Crate on that slave.
+
+
+Crate Options
 -------------
 
 Configuration options for crate instances can also be passed to the framework.

@@ -32,7 +32,10 @@ public class Main {
             "-Des.transport.tcp.port",
             "-Des.node.name",
             "-Des.discovery.zen.ping.multicast.enabled",
-            "-Des.discovery.zen.ping.unicast.hosts"
+            "-Des.discovery.zen.ping.unicast.hosts",
+            "-Des.path.data",
+            "-Des.path.blobs",
+            "-Des.path.logs"
     );
 
     static Configuration parseConfiguration(String[] args) {

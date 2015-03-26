@@ -7,11 +7,12 @@ import com.google.common.collect.ImmutableList;
 import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class Configuration {
+public class Configuration implements Serializable{
 
     @Parameter(names = { "--mesos-master" })
     private String mesosMaster = null;
@@ -33,6 +34,12 @@ public class Configuration {
 
     @Parameter(names = { "--crate-transport-port" })
     public Integer transportPort = 4300;
+
+    @Parameter(names = { "--crate-data-path" })
+    public String dataPath = null;
+
+    @Parameter(names = { "--crate-blob-path" })
+    public String blobPath = null;
 
     @Parameter(names = { "--api-port" })
     public Integer apiPort = 4040;
@@ -77,6 +84,8 @@ public class Configuration {
                 ", nodeCount=" + nodeCount +
                 ", httpPort=" + httpPort +
                 ", transportPort=" + transportPort +
+                ", dataPath="+ dataPath +
+                ", blobPath="+ blobPath +
                 ", apiPort=" + apiPort +
                 ", resCpus=" + resCpus +
                 ", resMemory=" + resMemory +
