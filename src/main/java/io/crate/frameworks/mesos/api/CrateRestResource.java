@@ -42,7 +42,7 @@ public class CrateRestResource {
             public Object getMessage() {
                 return new HashMap<String, Object>(){
                     {
-                        put("mesosMaster", conf.mesosMaster);
+                        put("mesosMaster", conf.mesosMaster());
                         put("cluster", new HashMap<String, Object>(){
                             {
                                 put("version", conf.version);

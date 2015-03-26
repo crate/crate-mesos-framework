@@ -4,13 +4,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.apache.mesos.Protos;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.TreeSet;
-
-import static com.google.common.collect.Sets.newTreeSet;
 
 public class Resources {
 
@@ -51,7 +46,7 @@ public class Resources {
         for (final Protos.Value.Range range : ports.getRanges().getRangeList()) {
             final long begin = range.getBegin();
             final long end = range.getEnd();
-            if(configuration.httpPort().longValue() > begin && configuration.httpPort().longValue() < end) {
+            if(configuration.httpPort.longValue() > begin && configuration.httpPort.longValue() < end) {
                 portsMatch = true;
             }
         }

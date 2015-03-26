@@ -67,8 +67,7 @@ public class Main {
         // create the driver
         MesosSchedulerDriver driver;
 
-        String mesosMaster = configuration.mesosMaster;
-
+        String mesosMaster = configuration.mesosMaster();
         if (System.getenv("MESOS_AUTHENTICATE") != null) {
             System.out.println("Enabling authentication for the framework");
 

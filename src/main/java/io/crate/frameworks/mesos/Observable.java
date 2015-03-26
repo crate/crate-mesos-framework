@@ -36,6 +36,10 @@ public class Observable<ObservedType extends Serializable> implements Serializab
         }
     }
 
+    public void clearObservers() {
+        observers.clear();
+    }
+
     private void writeObject(java.io.ObjectOutputStream stream)
             throws IOException {
         stream.writeObject(value);

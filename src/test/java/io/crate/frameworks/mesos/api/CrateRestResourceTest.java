@@ -35,7 +35,10 @@ public class CrateRestResourceTest {
     public void testClusterInfo() throws Exception {
         UriInfo mockedInfo = mock(UriInfo.class);
         GenericAPIResponse res = resource.clusterIndex(mockedInfo);
-        assertEquals("{resources={heap=256.0, cpus=0.5, disk=1024.0, memory=512.0}, mesosMaster=127.0.0.1:5050, api={apiPort=4040}, cluster={clusterName=crate, runningInstances=0, desiredInstances=-1, httpPort=4200, nodeCount=0, version=0.48.0}}", res.getMessage().toString());
+        assertEquals("{resources={heap=256.0, cpus=0.5, disk=1024.0, memory=512.0}, " +
+                "mesosMaster=zk://localhost:2181/mesos, api={apiPort=4040}, " +
+                "cluster={clusterName=crate, runningInstances=0, desiredInstances=-1, httpPort=4200, nodeCount=0, version=0.48.0}}",
+                res.getMessage().toString());
         assertEquals(200, res.getStatus());
     }
 

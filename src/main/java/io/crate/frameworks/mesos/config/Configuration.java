@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 public class Configuration {
 
     @Parameter(names = { "--mesos-master" })
-    public String mesosMaster = "127.0.0.1:5050";
+    private String mesosMaster = null;
 
     @Parameter(names = { "--zookeeper" })
     public String zookeeper = "localhost:2181";
@@ -47,6 +47,12 @@ public class Configuration {
     @Parameter(names = { "--resource-disk" })
     public Double resDisk = 1024d;
 
+    public String mesosMaster() {
+        if (mesosMaster == null) {
+            return String.format("zk://%s/mesos", zookeeper);
+        }
+        return mesosMaster;
+    }
 
     public Iterable<? extends Protos.Resource> getAllRequiredResources() {
         return Arrays.asList(

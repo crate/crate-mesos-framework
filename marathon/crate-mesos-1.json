@@ -3,11 +3,11 @@
     "instances": 1,
     "cpus": 0.25,
     "mem": 50,
-    "ports": [0],
+    "ports": [4040],
     "uris": [
         "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz"
     ],
-    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --mesos-master mesos-master-1:5050,mesos-master-2:5050,mesos-master-3:5050 --crate-cluster-name crate-prod --crate-version 0.47.7 --api-port $PORT0 --crate-http-port 4200 --crate-transport-port 4300",
+    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-prod --crate-version 0.47.7 --api-port $PORT0 --crate-http-port 4200 --crate-transport-port 4300",
     "healthChecks": [
         {
             "protocol": "HTTP",

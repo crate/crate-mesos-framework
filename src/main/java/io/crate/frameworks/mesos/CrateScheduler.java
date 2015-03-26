@@ -58,7 +58,6 @@ public class CrateScheduler implements Scheduler {
 
         state.frameworkId(frameworkID.getValue());
         stateStore.save();
-        // todo: use instances from state
         crateInstances = state.crateInstances();
 
         instancesObserver.driver(driver);
@@ -70,7 +69,9 @@ public class CrateScheduler implements Scheduler {
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framwork. Starting task reconciliation.");
         CrateState state = stateStore.state();
+        crateInstances = state.crateInstances();
         instancesObserver.driver(driver);
+        state.desiredInstances().clearObservers();
         state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
     }
