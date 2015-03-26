@@ -71,6 +71,7 @@ public class CrateExecutableInfo {
     }
 
     public TaskInfo taskInfo(Offer offer) {
+        // todo: build a serializable information for the executor instead of TaskInfo
         assert Resources.matches(offer.getResourcesList(), configuration) :
                 "must have enough resources in offer. Otherwise CrateContainer must not be created";
 
@@ -85,8 +86,7 @@ public class CrateExecutableInfo {
 
 
         List<String> args = genArgs();
-        String command = String.format("cd crate-* && bin/crate %s", Joiner.on(" ").join(args));
-        LOGGER.debug("Launch Crate with command: {}", command);
+        String command = String.format("bin/crate %s", Joiner.on(" ").join(args));
 
         // command info
         CommandInfo cmd = CommandInfo.newBuilder()
