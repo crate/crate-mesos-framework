@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import com.google.common.base.Joiner;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
@@ -14,6 +15,8 @@ import java.io.*;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class CrateExecutor implements Executor {
@@ -57,7 +60,6 @@ public class CrateExecutor implements Executor {
             LOGGER.debug("Prepare crateTask: {}", crateTask);
             boolean prepared = prepare(crateTask);
             if (prepared) {
-                LOGGER.debug("Launch task: {}", crateTask.getCommand().getValue());
                 task = new Task(crateTask);
                 startProcess(driver, task);
                 driver.sendStatusUpdate(TaskStatus.newBuilder()
@@ -213,18 +215,32 @@ public class CrateExecutor implements Executor {
 
     public class Task {
 
+        private final String env;
+        private final String cmd;
         public TaskInfo taskInfo;
-        public String cmd;
         public Process process = null;
 
         Task(TaskInfo taskInfo) {
             this.taskInfo = taskInfo;
             this.cmd = taskInfo.getCommand().getValue();
+            this.env = env();
+
+        }
+
+        private String env() {
+            Environment environment = taskInfo.getCommand().getEnvironment();
+            List<String> vars = new ArrayList<>(environment.getVariablesCount());
+            for (Environment.Variable variable : environment.getVariablesList()) {
+                vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
+            }
+            return Joiner.on(" ").join(vars);
         }
 
         public Process run() throws IOException {
+            final String runCmd = String.format("%s %s", task.env, task.cmd);
+            LOGGER.debug("Launch task: {}", runCmd);
             process = Runtime.getRuntime().exec(
-                    new String[]{"sh", "-c", task.cmd},
+                    new String[]{"sh", "-c", runCmd},
                     new String[]{},
                     dataDir
             );
