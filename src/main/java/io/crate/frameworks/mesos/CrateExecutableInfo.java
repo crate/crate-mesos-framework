@@ -15,12 +15,9 @@ import static java.util.Arrays.asList;
 
 public class CrateExecutableInfo {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutableInfo.class);
     private final static String CDN_URL = "https://cdn.crate.io/downloads/releases";
-    private final static String CMD = "crate";
 
     private final String clusterName;
-
     private final String hostname;
     private final CommandInfo.URI downloadURI;
     private final TaskID taskId;
@@ -61,6 +58,7 @@ public class CrateExecutableInfo {
 
     List<String> genArgs() {
         return asList(
+                "bin/crate",
                 String.format("-Des.cluster.name=%s", clusterName),
                 String.format("-Des.http.port=%d", configuration.httpPort),
                 String.format("-Des.transport.tcp.port=%d", configuration.transportPort),
@@ -84,16 +82,12 @@ public class CrateExecutableInfo {
                 ))
                 .build();
 
-
-        List<String> args = genArgs();
-        String command = String.format("bin/crate %s", Joiner.on(" ").join(args));
-
         // command info
         CommandInfo cmd = CommandInfo.newBuilder()
                 .addAllUris(asList(downloadURI))
                 .setShell(true)
                 .setEnvironment(env)
-                .setValue(command)
+                .addAllArguments(genArgs())
                 .build();
 
         // create task to run

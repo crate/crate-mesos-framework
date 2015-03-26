@@ -222,7 +222,7 @@ public class CrateExecutor implements Executor {
 
         Task(TaskInfo taskInfo) {
             this.taskInfo = taskInfo;
-            this.cmd = taskInfo.getCommand().getValue();
+            this.cmd = cmd();
             this.env = env();
 
         }
@@ -234,6 +234,10 @@ public class CrateExecutor implements Executor {
                 vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
             }
             return Joiner.on(" ").join(vars);
+        }
+
+        private String cmd() {
+            return Joiner.on(" ").join(taskInfo.getCommand().getArgumentsList());
         }
 
         public Process run() throws IOException {

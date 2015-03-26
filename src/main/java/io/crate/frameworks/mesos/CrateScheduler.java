@@ -282,11 +282,11 @@ public class CrateScheduler implements Scheduler {
         LOGGER.info("asking for more resources for {} more instances", instancesMissing);
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
-            Protos.Request r = Protos.Request.newBuilder()
-                    .addAllResources(configuration.getAllRequiredResources())
-                    .build();
-            LOGGER.debug("add resource request {}", r.toString());
-            requests.add(r);
+            requests.add(
+                    Protos.Request.newBuilder()
+                            .addAllResources(configuration.getAllRequiredResources())
+                            .build()
+            );
         }
         driver.requestResources(requests);
     }
