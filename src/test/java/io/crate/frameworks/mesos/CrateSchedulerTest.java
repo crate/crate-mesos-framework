@@ -19,6 +19,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyCollectionOf;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,8 +83,8 @@ public class CrateSchedulerTest {
 
         crateScheduler.resourceOffers(driver, offers);
 
-        verify(driver).launchTasks(anyCollectionOf(Protos.OfferID.class), taskInfoCaptor.capture(), any(Protos.Filters.class));
-        assertThat(taskInfoCaptor.getValue().size(), is(4));
+        verify(driver, times(4)).launchTasks(anyCollectionOf(Protos.OfferID.class), taskInfoCaptor.capture(), any(Protos.Filters.class));
+        assertThat(taskInfoCaptor.getValue().size(), is(1));
     }
 
     @Test

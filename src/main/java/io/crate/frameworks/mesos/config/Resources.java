@@ -1,55 +1,58 @@
 package io.crate.frameworks.mesos.config;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import org.apache.mesos.Protos;
 
 import java.util.List;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
+
 public class Resources {
 
-    public static boolean matches(List<Protos.Resource> offeredResources, Configuration configuration) {
-        ImmutableMap<String, Protos.Resource> resourceMap = Maps.uniqueIndex(offeredResources, new Function<Protos.Resource, String>() {
-            @Override
-            public String apply(Protos.Resource input) {
-                return input.getName();
-            }
-        });
+    private static final Function<Protos.Resource, String> RESOURCE_NAME = new Function<Protos.Resource, String>() {
+        @Override
+        public String apply (Protos.Resource input) {
+            return input.getName();
+        }
+    };
 
-        Protos.Resource cpus1 = resourceMap.get("cpus");
+    @SuppressWarnings("RedundantIfStatement")
+    public static boolean matches(List<Protos.Resource> offeredResources, Configuration configuration) {
+        ImmutableListMultimap<String, Protos.Resource> resourceMap = Multimaps.index(offeredResources, RESOURCE_NAME);
+
+        Protos.Resource cpus1 = getOnlyElement(resourceMap.get("cpus"));
         if (cpus1.getScalar().getValue() < configuration.resCpus) {
             return false;
         }
 
-        Protos.Resource mem = resourceMap.get("mem");
+        Protos.Resource mem = getOnlyElement(resourceMap.get("mem"));
 
-        //noinspection RedundantIfStatement
         if (mem.getScalar().getValue() < configuration.resMemory) {
             return false;
         }
 
-        Protos.Resource ports = resourceMap.get("ports");
-
-        //noinspection RedundantIfStatement
-        if(!checkPorts(configuration, ports)) {
+        ImmutableList<Protos.Resource> ports = resourceMap.get("ports");
+        if(!isPortInRange(configuration.httpPort, ports)) {
+            return false;
+        }
+        if(!isPortInRange(configuration.transportPort, ports)) {
             return false;
         }
 
-
         return true;
-
     }
 
-    private static boolean checkPorts(Configuration configuration, Protos.Resource ports) {
-        boolean portsMatch = false;
-        for (final Protos.Value.Range range : ports.getRanges().getRangeList()) {
-            final long begin = range.getBegin();
-            final long end = range.getEnd();
-            if(configuration.httpPort.longValue() > begin && configuration.httpPort.longValue() < end) {
-                portsMatch = true;
+    private static boolean isPortInRange(int port, List<Protos.Resource> portResources) {
+        for (Protos.Resource portResource : portResources) {
+            for (final Protos.Value.Range range : portResource.getRanges().getRangeList()) {
+                final long begin = range.getBegin();
+                final long end = range.getEnd();
+                if(port >= begin && port <= end) {
+                    return true;
+                }
             }
         }
-        return portsMatch;
+        return false;
     }
 }
