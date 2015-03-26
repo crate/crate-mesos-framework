@@ -6,12 +6,12 @@ import org.apache.mesos.Protos;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class CrateExecutableInfoTest {
-
 
     @Test
     public void testTransportPortIsSetCorrectly() throws Exception {
@@ -42,5 +42,16 @@ public class CrateExecutableInfoTest {
         ));
 
         assertThat(args, Matchers.hasItem("-Des.node.mesos_zone=a"));
+    }
+
+    @Test
+    public void testCrateArgsAreSet() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.crateArgs(Arrays.asList("-Des.foo=x"));
+        CrateInstances instances = new CrateInstances();
+        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances);
+        List<String> args = host1.genArgs(ImmutableList.<Protos.Attribute>of());
+
+        assertThat(args, Matchers.hasItem("-Des.foo=x"));
     }
 }

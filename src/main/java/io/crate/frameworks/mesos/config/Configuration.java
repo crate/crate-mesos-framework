@@ -3,10 +3,12 @@ package io.crate.frameworks.mesos.config;
 import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.google.common.collect.ImmutableList;
 import io.crate.frameworks.mesos.SaneProtos;
 import org.apache.mesos.Protos;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public class Configuration {
@@ -47,6 +49,8 @@ public class Configuration {
     @Parameter(names = { "--resource-disk" })
     public Double resDisk = 1024d;
 
+    private List<String> crateArgs = ImmutableList.of();
+
     public String mesosMaster() {
         if (mesosMaster == null) {
             return String.format("zk://%s/mesos", zookeeper);
@@ -83,6 +87,14 @@ public class Configuration {
 
     public void version(String version) {
         this.version = version;
+    }
+
+    public void crateArgs(List<String> crateArgs) {
+        this.crateArgs = crateArgs;
+    }
+
+    public List<String> crateArgs() {
+        return crateArgs;
     }
 
     public static class VersionValidator implements IParameterValidator {

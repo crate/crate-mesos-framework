@@ -1,10 +1,11 @@
+=====================
 Crate-Mesos-Framework
 =====================
 
 This is an integration framework which allows running and managing Crate_ database through Mesos_.
 
 Usage
------
+=====
 
 First, the jar file needs to be built from source::
 
@@ -23,7 +24,7 @@ which is the Crate version that should be used.
 Current Crate version is ``0.47.7``.
 
 Execute via Command Line
-........................
+------------------------
 
 ::
 
@@ -31,7 +32,7 @@ Execute via Command Line
 
 
 Launch via Marathon
-....................
+--------------------
 
 Create a Marathon configuration file::
 
@@ -62,7 +63,10 @@ And submit it to a running Marathon master::
 
 
 Command Line Options
---------------------
+====================
+
+Framework specific options
+--------------------------
 
 =========================== ============== =======================
 OPTION                       REQUIRED       DEFAULT
@@ -91,8 +95,23 @@ OPTION                       REQUIRED       DEFAULT
 =========================== ============== =======================
 
 
+Crate options
+-------------
+
+Configuration options for crate instances can also be passed to the framework.
+These options will be passed to the Crate processes which are launched by the
+framework.
+
+All options starting with ``-Des.`` are considered crate configuration options.
+
+For example in order to get the framework to launch instances that will have
+stats-collecting enabled use the following::
+
+    java ... -jar crate-mesos.jar --crate-version 0.x.x -Des.stats.enabled=true
+
+
 API Usage
----------
+=========
 
 The API is availble on port ``4040`` (default, but can be set via the ``--api-port`` command line option).
 
@@ -106,7 +125,7 @@ You can resize the cluster by setting the number of desired instances::
 
 
 Service Discovery for Applications using DNS
---------------------------------------------
+============================================
 
 In order for applications to discover the Crate nodes `Mesos-DNS`_ can be used.
 
@@ -121,7 +140,7 @@ Mesos-DNS configuration.
 
 
 Run Multiple Crate Clusters using Marathon
-------------------------------------------
+==========================================
 
 One Crate Framework can only be used to manage one crate cluster.In order to be
 able to manage multiple crate clusters it is possible to run the crate
@@ -190,7 +209,7 @@ definition.
 
 
 Are you a Developer?
---------------------
+====================
 
 You can build Crate-Mesos-Framework on your own with the latest version hosted on GitHub.
 To do so, please refer to ``DEVELOP.rst`` for further information.

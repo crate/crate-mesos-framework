@@ -14,6 +14,8 @@ import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -23,22 +25,50 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     private static final Set<String> HELP_OPTIONS = Sets.newHashSet("-h", "--help", "help");
+    private static final Set<String> PROTECTED_CRATE_ARGS = Sets.newHashSet(
+            "-Des.cluster.name",
+            "-Des.http.port",
+            "-Des.transport.tcp.port",
+            "-Des.node.name",
+            "-Des.discovery.zen.ping.multicast.enabled",
+            "-Des.discovery.zen.ping.unicast.hosts"
+    );
 
-    public static void main(String[] args) throws Exception {
-        BasicConfigurator.configure();
-
+    static Configuration parseConfiguration(String[] args) {
         Configuration configuration = new Configuration();
         JCommander jCommander;
 
+        List<String> crateArgs = new ArrayList<>();
+        List<String> safeArgs = new ArrayList<>(args.length);
         for (String arg : args) {
             if (HELP_OPTIONS.contains(arg)) {
                 jCommander = new JCommander(configuration);
                 jCommander.usage();
                 System.exit(1);
             }
+            if (arg.startsWith("-Des.")) {
+                String argKey = arg.split("\\=")[0];
+                if (PROTECTED_CRATE_ARGS.contains(argKey)) {
+                    throw new IllegalArgumentException(
+                            String.format("Argument \"%s\" is protected and managed by the framework. " +
+                                    "It cannot be set by the user", argKey));
+                } else {
+                    crateArgs.add(arg);
+                }
+            } else {
+                safeArgs.add(arg);
+            }
         }
-        jCommander = new JCommander(configuration, args);
+        jCommander = new JCommander(configuration, safeArgs.toArray(new String[safeArgs.size()]));
+        configuration.crateArgs(crateArgs);
         LOGGER.debug("args: {}", configuration);
+        return configuration;
+    }
+
+
+    public static void main(String[] args) throws Exception {
+        BasicConfigurator.configure();
+        Configuration configuration = parseConfiguration(args);
 
         final int frameworkFailoverTimeout = 60 * 60;
 

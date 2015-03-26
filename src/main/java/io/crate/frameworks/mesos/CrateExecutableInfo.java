@@ -76,6 +76,9 @@ public class CrateExecutableInfo {
                 args.add(String.format("-Des.node.mesos_%s=%s", attribute.getName(), attribute.getText().getValue()));
             }
         }
+        for (String crateArg : configuration.crateArgs()) {
+            args.add(crateArg);
+        }
         return args;
     }
 
