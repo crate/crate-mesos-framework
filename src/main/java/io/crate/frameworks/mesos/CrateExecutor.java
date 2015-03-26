@@ -1,7 +1,6 @@
 package io.crate.frameworks.mesos;
 
 import com.google.common.base.Joiner;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
@@ -12,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -24,12 +24,12 @@ public class CrateExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutor.class);
 
     private Task task;
-    private File dataDir;
+    private File workingDirectory;
     private TaskID currentTaskId;
 
     @Override
     public void registered(ExecutorDriver driver, ExecutorInfo executorInfo, FrameworkInfo frameworkInfo, SlaveInfo slaveInfo) {
-        LOGGER.debug("Registered executor {} for framework {}", executorInfo.getExecutorId().getValue(), frameworkInfo);
+        LOGGER.debug("Registered executor {}", executorInfo.getExecutorId().getValue());
     }
 
     @Override
@@ -49,16 +49,17 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_STARTING)
                 .build());
-        TaskInfo crateTask = null;
+
+        CrateExecutableInfo crateTask = null;
         try {
-            crateTask = TaskInfo.parseFrom(taskInfo.getData());
-        } catch (InvalidProtocolBufferException e) {
+            crateTask = CrateExecutableInfo.fromStream(taskInfo.getData().toByteArray());
+        } catch (IOException e) {
             LOGGER.debug("Could not de-serialize TaskInfo", e);
             e.printStackTrace();
         }
         if (crateTask != null) {
             LOGGER.debug("Prepare crateTask: {}", crateTask);
-            boolean prepared = prepare(crateTask);
+            boolean prepared = prepare(driver, crateTask);
             if (prepared) {
                 task = new Task(crateTask);
                 startProcess(driver, task);
@@ -103,22 +104,35 @@ public class CrateExecutor implements Executor {
         LOGGER.debug("error: {}", message);
     }
 
-    private boolean prepare(TaskInfo taskInfo) {
-        dataDir = getOrCreateDataDir();
-        boolean success = true;
-        for (CommandInfo.URI uri : taskInfo.getCommand().getUrisList()) {
-            success = fetchAndExtractUri(uri);
-            if (!success) {
-                break;
-            }
+    private boolean prepare(ExecutorDriver driver, CrateExecutableInfo info) {
+        workingDirectory = getOrCreateDataDir();
+        File dataPath = info.dataDir();
+        if (dataPath != null && (!dataPath.exists() || !dataPath.isDirectory())) {
+            LOGGER.debug("Option -Des.path.data is set to {} but does not exist or is not a directory.",
+                    dataPath.getAbsolutePath());
+            CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
+                    MessageMissingResource.MISSING_DATA_PATH);
+            driver.sendFrameworkMessage(msg.toStream());
+            LOGGER.debug("message = {}", msg.toStream());
+            return false;
         }
-        return success;
+        File blobPath = info.blobDir();
+        if (blobPath != null && (!blobPath.exists() || !blobPath.isDirectory())) {
+            LOGGER.debug("Option -Des.path.blobs is set to {} but does not exist or is not a directory.",
+                    blobPath.getAbsolutePath());
+            CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
+                    MessageMissingResource.MISSING_BLOB_PATH);
+            driver.sendFrameworkMessage(msg.toStream());
+            LOGGER.debug("message = {}", msg.toStream());
+            return false;
+        }
+        return fetchAndExtractUri(info.uri());
     }
 
-    private boolean fetchAndExtractUri(CommandInfo.URI uri) {
+    private boolean fetchAndExtractUri(URI uri) {
         boolean success;
         try {
-            URL download = new URL(uri.getValue());
+            URL download = uri.toURL();
             String fn = new File(download.getFile()).getName();
             File tmpFile = new File(fn);
             if (!tmpFile.exists()) {
@@ -141,7 +155,7 @@ public class CrateExecutor implements Executor {
     @NotNull
     private File getOrCreateDataDir() {
         File dataDir = new File("crate.tmp").getAbsoluteFile().getParentFile();
-        LOGGER.debug("dataDir={}",dataDir);
+        LOGGER.debug("workingDirectory={}",dataDir);
 
         if (!dataDir.exists()) {
             if (!dataDir.mkdirs()) {
@@ -153,18 +167,18 @@ public class CrateExecutor implements Executor {
     }
 
     private boolean extractFile(File tmpFile) {
-        LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), dataDir.getAbsolutePath());
+        LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), workingDirectory.getAbsolutePath());
         boolean success = true;
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{
                             "tar",
-                            "-C", dataDir.getAbsolutePath(),
+                            "-C", workingDirectory.getAbsolutePath(),
                             "-xf", tmpFile.getAbsolutePath(),
                             "--strip-components=1"
                     },
                     new String[]{},
-                    dataDir
+                    workingDirectory
             );
             process.waitFor();
         } catch (IOException|InterruptedException e) {
@@ -203,7 +217,7 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_FAILED)
                 .build());
-        System.exit(2);
+        driver.stop();
     }
 
     protected void redirectProcess(Process process) {
@@ -217,27 +231,27 @@ public class CrateExecutor implements Executor {
 
         private final String env;
         private final String cmd;
-        public TaskInfo taskInfo;
+        public CrateExecutableInfo executableInfo;
         public Process process = null;
 
-        Task(TaskInfo taskInfo) {
-            this.taskInfo = taskInfo;
+        Task(CrateExecutableInfo info) {
+            this.executableInfo = info;
             this.cmd = cmd();
             this.env = env();
 
         }
 
         private String env() {
-            Environment environment = taskInfo.getCommand().getEnvironment();
-            List<String> vars = new ArrayList<>(environment.getVariablesCount());
-            for (Environment.Variable variable : environment.getVariablesList()) {
+            List<Environment.Variable> env = executableInfo.environment();
+            ArrayList<String> vars = new ArrayList<>(env.size());
+            for (Environment.Variable variable : env) {
                 vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
             }
             return Joiner.on(" ").join(vars);
         }
 
         private String cmd() {
-            return Joiner.on(" ").join(taskInfo.getCommand().getArgumentsList());
+            return Joiner.on(" ").join(executableInfo.arguments());
         }
 
         public Process run() throws IOException {
@@ -246,7 +260,7 @@ public class CrateExecutor implements Executor {
             process = Runtime.getRuntime().exec(
                     new String[]{"sh", "-c", runCmd},
                     new String[]{},
-                    dataDir
+                    workingDirectory
             );
             return process;
         }

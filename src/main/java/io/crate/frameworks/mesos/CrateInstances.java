@@ -10,7 +10,6 @@ import java.util.*;
 
 public class CrateInstances implements Serializable, Iterable<CrateInstance> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CrateInstances.class);
     private final ArrayList<CrateInstance> instances = new ArrayList<>();
     private HashSet<String> hosts;
 

@@ -32,7 +32,10 @@ public class Main {
             "-Des.transport.tcp.port",
             "-Des.node.name",
             "-Des.discovery.zen.ping.multicast.enabled",
-            "-Des.discovery.zen.ping.unicast.hosts"
+            "-Des.discovery.zen.ping.unicast.hosts",
+            "-Des.path.data",
+            "-Des.path.blobs",
+            "-Des.path.logs"
     );
 
     static Configuration parseConfiguration(String[] args) {
@@ -71,7 +74,7 @@ public class Main {
         BasicConfigurator.configure();
         Configuration configuration = parseConfiguration(args);
 
-        final int frameworkFailoverTimeout = 60 * 60;
+        final double frameworkFailoverTimeout = 60 * 60;
 
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("CrateFramework")

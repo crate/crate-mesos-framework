@@ -2,18 +2,22 @@ package io.crate.frameworks.mesos.api;
 
 import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.config.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
 import java.util.HashMap;
+import java.util.List;
 
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)
 public class CrateRestResource {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CrateRestResource.class);
     private final PersistentStateStore store;
     private final Configuration conf;
 
@@ -37,19 +41,25 @@ public class CrateRestResource {
     public GenericAPIResponse clusterIndex(@Context UriInfo uriInfo) {
         final int desired = store.state().desiredInstances().getValue();
         final int running = store.state().crateInstances().size();
+        final HashMap<String, List<String>> excluded = store.state().excludedSlaves();
         return new GenericAPIResponse() {
             @Override
             public Object getMessage() {
                 return new HashMap<String, Object>(){
                     {
                         put("mesosMaster", conf.mesosMaster());
+                        put("instances", new HashMap<String, Integer>() {
+                            {
+                                put("desired", desired);
+                                put("running", running);
+                            }
+                        });
+                        put("excludedSlaves", excluded);
                         put("cluster", new HashMap<String, Object>(){
                             {
                                 put("version", conf.version);
-                                put("clusterName", conf.clusterName);
+                                put("name", conf.clusterName);
                                 put("httpPort", conf.httpPort);
-                                put("desiredInstances", desired);
-                                put("runningInstances", running);
                                 put("nodeCount", conf.nodeCount);
                             }
                         });
