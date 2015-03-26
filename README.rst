@@ -208,6 +208,27 @@ definition.
       but needs to be built locally and somehow copied to the slaves.
 
 
+
+Mesos Slave Attributes and Crate Node Tags
+==========================================
+
+Any attributes that are defined on a Mesos-Slave will be passed to the Crate
+processes as node tag with a ``mesos_`` prefix.
+
+For example if a Mesos-Slave is launched with ``--attributes=zone:a`` the Crate
+instance will have the ``node.mesos_zone=a`` tag set.
+
+This is can be used to setup a `Multi Zone Crate Cluster`_.
+
+Assuming there are 4 slaves, 2 with the attribute ``zone:a`` and 2 with the
+attribute ``zone:b``. In this case the framework would have to be launched with
+the following options to have a working multi zone setup::
+
+    java ... -jar crate-mesos.jar --crate-version x.x.x \
+        -Des.cluster.routing.allocation.awareness.attributes=mesos_zone \
+        -Des.cluster.routing.allocation.awareness.force.mesos_zone.values=a,b
+
+
 Are you a Developer?
 ====================
 
@@ -218,3 +239,4 @@ To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _Crate: https://github.com/crate/crate
 .. _Mesos: http://mesos.apache.org
 .. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/
+.. _Multi Zone Crate Cluster: https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
