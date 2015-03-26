@@ -8,7 +8,10 @@ import org.apache.mesos.Protos.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 import static java.util.Arrays.asList;
@@ -59,18 +62,24 @@ public class CrateExecutableInfo {
         return Joiner.on(",").join(hosts);
     }
 
-    List<String> genArgs() {
-        return asList(
+    List<String> genArgs(List<Attribute> attributes) {
+        List<String> args = new ArrayList<>(asList(
                 String.format("-Des.cluster.name=%s", clusterName),
                 String.format("-Des.http.port=%d", configuration.httpPort),
                 String.format("-Des.transport.tcp.port=%d", configuration.transportPort),
                 String.format("-Des.node.name=%s", nodeNode),
                 String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
                 String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts())
-        );
+        ));
+        for (Attribute attribute : attributes) {
+            if (attribute.hasText()) {
+                args.add(String.format("-Des.node.mesos_%s=%s", attribute.getName(), attribute.getText().getValue()));
+            }
+        }
+        return args;
     }
 
-    public TaskInfo taskInfo(Offer offer) {
+    public TaskInfo taskInfo(Offer offer, List<Attribute> attributes) {
         assert Resources.matches(offer.getResourcesList(), configuration) :
                 "must have enough resources in offer. Otherwise CrateContainer must not be created";
 
@@ -84,7 +93,7 @@ public class CrateExecutableInfo {
                 .build();
 
 
-        List<String> args = genArgs();
+        List<String> args = genArgs(attributes);
         String command = String.format("cd crate-* && bin/crate %s", Joiner.on(" ").join(args));
         LOGGER.debug("Launch Crate with command: {}", command);
 

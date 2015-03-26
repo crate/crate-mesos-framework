@@ -104,7 +104,7 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                Protos.TaskInfo taskInfo = tryToObtainTaskInfo(offer);
+                Protos.TaskInfo taskInfo = tryToObtainTaskInfo(offer, offer.getAttributesList());
                 if (taskInfo == null) {
                     driver.declineOffer(offer.getId());
                 } else {
@@ -122,7 +122,7 @@ public class CrateScheduler implements Scheduler {
 
     }
 
-    private Protos.TaskInfo tryToObtainTaskInfo(Protos.Offer offer) {
+    private Protos.TaskInfo tryToObtainTaskInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
         if (crateInstances.anyOnHost(offer.getHostname())) {
             LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
             return null;
@@ -136,7 +136,7 @@ public class CrateScheduler implements Scheduler {
                 offer.getHostname(),
                 crateInstances
         );
-        Protos.TaskInfo taskInfo = container.taskInfo(offer);
+        Protos.TaskInfo taskInfo = container.taskInfo(offer, attributes);
         crateInstances.addInstance(new CrateInstance(
                 container.getHostname(),
                 taskInfo.getTaskId().getValue(),
