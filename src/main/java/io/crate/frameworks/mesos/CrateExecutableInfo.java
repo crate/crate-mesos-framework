@@ -50,6 +50,8 @@ public class CrateExecutableInfo implements Serializable {
     public List<String> arguments() {
         List<String> args = new ArrayList<>(asList(
                 "bin/crate",
+                "-p",
+                "crate.pid",
                 String.format("-Des.cluster.name=%s", configuration.clusterName),
                 String.format("-Des.http.port=%d", configuration.httpPort),
                 String.format("-Des.transport.tcp.port=%d", configuration.transportPort),

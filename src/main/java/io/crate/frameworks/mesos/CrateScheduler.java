@@ -206,15 +206,15 @@ public class CrateScheduler implements Scheduler {
 
     private CrateExecutableInfo obtainExecInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
         if (crateInstances.anyOnHost(offer.getHostname())) {
-            LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
+            LOGGER.debug("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
             return null;
         }
         if (!Resources.matches(offer.getResourcesList(), configuration)) {
-            LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
+            LOGGER.debug("can't use offer {}; not enough resources", offer.getId().getValue());
             return null;
         }
         if (offer.hasSlaveId() && stateStore.state().excludedSlaveIds().contains(offer.getSlaveId().getValue())) {
-            LOGGER.info("can't use offer {}; slaveId {} is blacklisted", offer.getId().getValue(), offer.getSlaveId().getValue());
+            LOGGER.debug("can't use offer {}; slaveId {} is blacklisted", offer.getId().getValue(), offer.getSlaveId().getValue());
             return null;
         }
         return new CrateExecutableInfo(
@@ -235,7 +235,7 @@ public class CrateScheduler implements Scheduler {
         if (toKill == 0) return;
         int killed = 0;
         // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
-        LOGGER.info("Too many instances running. Killing {} tasks", toKill);
+        LOGGER.debug("Too many instances running. Killing {} tasks", toKill);
         for (CrateInstance crateInstance : crateInstances) {
             if (killed == toKill) {
                 break;
@@ -256,7 +256,7 @@ public class CrateScheduler implements Scheduler {
     public void statusUpdate(SchedulerDriver driver, Protos.TaskStatus taskStatus) {
         final String taskId = taskStatus.getTaskId().getValue();
         LOGGER.info("statusUpdate() {}", taskStatus.getMessage());
-        LOGGER.info("{} {}", taskStatus.getState(), taskId);
+        LOGGER.debug("{} {}", taskStatus.getState(), taskId);
 
         if (!reconcileTasks.isEmpty()) {
             for (int i = reconcileTasks.size()-1; i >= 0; i--) {
@@ -277,7 +277,6 @@ public class CrateScheduler implements Scheduler {
                     }
                 }
             }
-            LOGGER.debug("revive offers ...");
             driver.reviveOffers();
         }
 
@@ -324,7 +323,7 @@ public class CrateScheduler implements Scheduler {
     }
 
     private void requestMoreResources(SchedulerDriver driver, int instancesMissing) {
-        LOGGER.info("asking for more resources for {} more instances", instancesMissing);
+        LOGGER.debug("asking for more resources for {} more instances", instancesMissing);
         List<Protos.Request> requests = new ArrayList<>(instancesMissing);
         for (int i = 0; i < instancesMissing; i++) {
             requests.add(
@@ -349,7 +348,7 @@ public class CrateScheduler implements Scheduler {
         switch (data.type()) {
             case MESSAGE_MISSING_RESOURCE:
                 MessageMissingResource.Reason reason = ((MessageMissingResource) data.data()).reason();
-                LOGGER.debug("Remove bad host from offers: {} Reason: {}", slaveID.getValue(), reason.toString());
+                LOGGER.info("Remove bad host from offers: {} Reason: {}", slaveID.getValue(), reason.toString());
                 stateStore.state().addSlaveIdToExcludeList(reason.toString(), slaveID.getValue());
                 stateStore.save();
                 scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
@@ -401,7 +400,6 @@ public class CrateScheduler implements Scheduler {
                 Protos.TaskState state = instance.state() == CrateInstance.State.RUNNING
                         ? Protos.TaskState.TASK_RUNNING
                         : Protos.TaskState.TASK_STARTING;
-                LOGGER.debug("taskID {} instance={}", instance.taskId(), instance);
                 Protos.TaskStatus.Builder builder = Protos.TaskStatus.newBuilder();
                 builder.setState(state);
                 builder.setTaskId(taskID(instance.taskId()));

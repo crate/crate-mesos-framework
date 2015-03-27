@@ -141,6 +141,21 @@ You can resize the cluster by setting the number of desired instances::
     curl -X POST -H "Content-Type: application/json" localhost:4040/cluster/resize -d '{"instances": 5}'
 
 
+Resizing a Cluster
+==================
+
+
+A cluster can be resized by changing the number of instances using the Framwork API (see above).
+
+Increasing the number of instances is always possible, unless the number of desired instances is
+greater than the number of slaves. The framework enforces the contraint that there is only
+one Crate instance per framework running on each host.
+
+The Crate Framework shuts down Crate instances gracefully (see `Configuration`_ and `Zero Downtime Upgrade`_)
+when decreasing the number of instances in a cluster.
+
+
+
 Service Discovery for Applications using DNS
 ============================================
 
@@ -257,3 +272,6 @@ To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _Mesos: http://mesos.apache.org
 .. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/
 .. _Multi Zone Crate Cluster: https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
+.. _Configuration: https://crate.io/docs/en/stable/configuration.html#graceful-stop
+.. _Zero Downtime Upgrade: https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html#step-2-graceful-stop
+

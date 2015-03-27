@@ -29,7 +29,7 @@ public class CrateExecutor implements Executor {
 
     @Override
     public void registered(ExecutorDriver driver, ExecutorInfo executorInfo, FrameworkInfo frameworkInfo, SlaveInfo slaveInfo) {
-        LOGGER.debug("Registered executor {}", executorInfo.getExecutorId().getValue());
+        LOGGER.info("Registered executor {}", executorInfo.getExecutorId().getValue());
     }
 
     @Override
@@ -39,7 +39,8 @@ public class CrateExecutor implements Executor {
 
     @Override
     public void disconnected(ExecutorDriver driver) {
-        // todo: handle correctly
+        LOGGER.warn("CrateExecutor was disconnected");
+        // todo: we might need to implement some functionality for slave failover
     }
 
     @Override
@@ -54,8 +55,7 @@ public class CrateExecutor implements Executor {
         try {
             crateTask = CrateExecutableInfo.fromStream(taskInfo.getData().toByteArray());
         } catch (IOException e) {
-            LOGGER.debug("Could not de-serialize TaskInfo", e);
-            e.printStackTrace();
+            LOGGER.error("Could not de-serialize TaskInfo", e);
         }
         if (crateTask != null) {
             LOGGER.debug("Prepare crateTask: {}", crateTask);
@@ -77,18 +77,32 @@ public class CrateExecutor implements Executor {
     public void killTask(ExecutorDriver driver, TaskID taskId) {
         LOGGER.info("Killing task : " + taskId.getValue());
         if (task.process != null) {
-            LOGGER.info("Found task to kill: " + taskId.getValue());
-            task.process.destroy();
-            task.process = null;
-            driver.sendStatusUpdate(TaskStatus.newBuilder()
-                    .setTaskId(taskId)
-                    .setState(TaskState.TASK_KILLED)
-                    .build());
-            driver.stop();
+            LOGGER.debug("Found task to kill: " + taskId.getValue());
+            int pid = task.pid();
+            if (pid == -1) {
+                LOGGER.error("Graceful shutdown failed. Could not read crate.pid.");
+                task.process.destroy();
+                task.process = null;
+                return;
+            }
+            boolean success = task.gracefulStop();
+            if (success) {
+                driver.sendStatusUpdate(TaskStatus.newBuilder()
+                        .setTaskId(taskId)
+                        .setState(TaskState.TASK_KILLED)
+                        .build());
+                driver.stop();
+            } else {
+                driver.sendStatusUpdate(TaskStatus.newBuilder()
+                        .setTaskId(taskId)
+                        .setState(TaskState.TASK_RUNNING)
+                        .build());
+            }
         } else  {
-            LOGGER.debug("No running task found :(");
+            LOGGER.error("No running task found.");
         }
     }
+
 
     @Override
     public void frameworkMessage(ExecutorDriver driver, byte[] data) {
@@ -108,22 +122,20 @@ public class CrateExecutor implements Executor {
         workingDirectory = getOrCreateDataDir();
         File dataPath = info.dataDir();
         if (dataPath != null && (!dataPath.exists() || !dataPath.isDirectory())) {
-            LOGGER.debug("Option -Des.path.data is set to {} but does not exist or is not a directory.",
+            LOGGER.warn("Option -Des.path.data is set to {} but does not exist or is not a directory.",
                     dataPath.getAbsolutePath());
             CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
                     MessageMissingResource.MISSING_DATA_PATH);
             driver.sendFrameworkMessage(msg.toStream());
-            LOGGER.debug("message = {}", msg.toStream());
             return false;
         }
         File blobPath = info.blobDir();
         if (blobPath != null && (!blobPath.exists() || !blobPath.isDirectory())) {
-            LOGGER.debug("Option -Des.path.blobs is set to {} but does not exist or is not a directory.",
+            LOGGER.warn("Option -Des.path.blobs is set to {} but does not exist or is not a directory.",
                     blobPath.getAbsolutePath());
             CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
                     MessageMissingResource.MISSING_BLOB_PATH);
             driver.sendFrameworkMessage(msg.toStream());
-            LOGGER.debug("message = {}", msg.toStream());
             return false;
         }
         return fetchAndExtractUri(info.uri());
@@ -155,11 +167,9 @@ public class CrateExecutor implements Executor {
     @NotNull
     private File getOrCreateDataDir() {
         File dataDir = new File("crate.tmp").getAbsoluteFile().getParentFile();
-        LOGGER.debug("workingDirectory={}",dataDir);
-
         if (!dataDir.exists()) {
             if (!dataDir.mkdirs()) {
-                LOGGER.debug("Failed to create directory {}", dataDir.getAbsolutePath());
+                LOGGER.error("Failed to create working directory {}", dataDir.getAbsolutePath());
                 System.exit(2);
             }
         }
@@ -263,6 +273,55 @@ public class CrateExecutor implements Executor {
                     workingDirectory
             );
             return process;
+        }
+
+        public int pid() {
+            try {
+                FileInputStream pidFile = new FileInputStream("crate.pid");
+                BufferedReader in = new BufferedReader(new InputStreamReader(pidFile));
+                return Integer.valueOf(in.readLine());
+            } catch (IOException e) {
+                LOGGER.error("Reading PID from crate.pid failed.");
+            }
+            return -1;
+        }
+
+        class GracefulShutdownWorker implements Runnable {
+            private final Process process;
+            public int exitCode = -1;
+            public GracefulShutdownWorker(Process process) {
+                this.process = process;
+            }
+            @Override
+            public void run() {
+                try {
+                    exitCode = this.process.waitFor();
+                } catch (InterruptedException e) {
+                    exitCode = -1;
+                }
+            }
+        }
+
+        public boolean gracefulStop() {
+            int pid = pid();
+            boolean success = true;
+            try {
+                GracefulShutdownWorker worker = new GracefulShutdownWorker(process);
+                Thread shutdown = new Thread(worker);
+                shutdown.start();
+                LOGGER.debug("Sending -USR2 signale to PID {}", pid);
+                Runtime.getRuntime().exec(new String[]{"kill", "-USR2", Integer.toString(pid)});
+                // todo: set timeout correctly
+                shutdown.join(7_200_000L); // 60 * 60 * 2 * 1000;
+                LOGGER.debug("Crate process exited with code {}", worker.exitCode);
+                if (worker.exitCode == -1) {
+                   throw new InterruptedIOException();
+                }
+            } catch (IOException | InterruptedException e) {
+                LOGGER.error("Graceful shutdown task still running. We ran into a timeout :(", e);
+                success = false;
+            }
+            return success;
         }
     }
 
