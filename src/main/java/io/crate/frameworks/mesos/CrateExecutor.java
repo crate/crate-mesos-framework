@@ -78,17 +78,31 @@ public class CrateExecutor implements Executor {
         LOGGER.info("Killing task : " + taskId.getValue());
         if (task.process != null) {
             LOGGER.info("Found task to kill: " + taskId.getValue());
-            task.process.destroy();
-            task.process = null;
-            driver.sendStatusUpdate(TaskStatus.newBuilder()
-                    .setTaskId(taskId)
-                    .setState(TaskState.TASK_KILLED)
-                    .build());
-            driver.stop();
+            int pid = task.pid();
+            if (pid == -1) {
+                LOGGER.debug("Graceful shutdown failed. Could not read crate.pid.");
+                task.process.destroy();
+                task.process = null;
+                return;
+            }
+            boolean success = task.gracefulStop();
+            if (success) {
+                driver.sendStatusUpdate(TaskStatus.newBuilder()
+                        .setTaskId(taskId)
+                        .setState(TaskState.TASK_KILLED)
+                        .build());
+                driver.stop();
+            } else {
+                driver.sendStatusUpdate(TaskStatus.newBuilder()
+                        .setTaskId(taskId)
+                        .setState(TaskState.TASK_RUNNING)
+                        .build());
+            }
         } else  {
             LOGGER.debug("No running task found :(");
         }
     }
+
 
     @Override
     public void frameworkMessage(ExecutorDriver driver, byte[] data) {
@@ -263,6 +277,55 @@ public class CrateExecutor implements Executor {
                     workingDirectory
             );
             return process;
+        }
+
+        public int pid() {
+            try {
+                FileInputStream pidFile = new FileInputStream("crate.pid");
+                BufferedReader in = new BufferedReader(new InputStreamReader(pidFile));
+                return Integer.valueOf(in.readLine());
+            } catch (IOException e) {
+                LOGGER.error("Reading PID from crate.pid failed.");
+            }
+            return -1;
+        }
+
+        class GracefulShutdownWorker implements Runnable {
+            private final Process process;
+            public int exitCode = -1;
+            public GracefulShutdownWorker(Process process) {
+                this.process = process;
+            }
+            @Override
+            public void run() {
+                try {
+                    exitCode = this.process.waitFor();
+                } catch (InterruptedException e) {
+                    exitCode = -1;
+                }
+            }
+        }
+
+        public boolean gracefulStop() {
+            int pid = pid();
+            boolean success = true;
+            try {
+                GracefulShutdownWorker worker = new GracefulShutdownWorker(process);
+                Thread shutdown = new Thread(worker);
+                shutdown.start();
+                LOGGER.debug("Sending -USR2 signale to PID {}", pid);
+                Runtime.getRuntime().exec(new String[]{"kill", "-USR2", Integer.toString(pid)});
+                // todo: set timeout correctly
+                shutdown.join(7_200_000L); // 60 * 60 * 2 * 1000;
+                LOGGER.debug("Crate process exited with code {}", worker.exitCode);
+                if (worker.exitCode == -1) {
+                   throw new InterruptedIOException();
+                }
+            } catch (IOException | InterruptedException e) {
+                LOGGER.debug("Graceful shutdown task still running. We ran into a timeout :(", e);
+                success = false;
+            }
+            return success;
         }
     }
 
