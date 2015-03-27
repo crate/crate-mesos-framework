@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import com.google.protobuf.ByteString;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos;
@@ -111,7 +112,7 @@ public class CrateScheduler implements Scheduler {
                     continue;
                 }
 
-                Protos.TaskInfo crateInfo = obtainCrateInfo(offer, offer.getAttributesList());
+                CrateExecutableInfo crateInfo = obtainExecInfo(offer, offer.getAttributesList());
                 if (crateInfo == null) {
                     driver.declineOffer(offer.getId());
                 } else {
@@ -119,7 +120,7 @@ public class CrateScheduler implements Scheduler {
                     Protos.TaskInfo taskInfo = Protos.TaskInfo.newBuilder()
                             .setName(configuration.clusterName)
                             .setTaskId(taskId)
-                            .setData(crateInfo.toByteString())
+                            .setData(ByteString.copyFrom(crateInfo.toStream()))
                             .setExecutor(createExecutor())
                             .setSlaveId(offer.getSlaveId())
                             .addAllResources(configuration.getAllRequiredResources())
@@ -161,12 +162,11 @@ public class CrateScheduler implements Scheduler {
                                 .build()
                 )
                 .setCommand(cmd)
-                .addAllResources(configuration.getAllRequiredResources())
                 .build();
 
     }
 
-    private Protos.TaskInfo obtainCrateInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
+    private CrateExecutableInfo obtainExecInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
         if (crateInstances.anyOnHost(offer.getHostname())) {
             LOGGER.info("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
             return null;
@@ -175,12 +175,12 @@ public class CrateScheduler implements Scheduler {
             LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
             return null;
         }
-        CrateExecutableInfo container = new CrateExecutableInfo(
+        return new CrateExecutableInfo(
                 configuration,
                 offer.getHostname(),
-                crateInstances
+                crateInstances,
+                attributes
         );
-        return container.taskInfo(offer, attributes);
     }
 
     private void declineAllOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
