@@ -74,7 +74,7 @@ public class Main {
         BasicConfigurator.configure();
         Configuration configuration = parseConfiguration(args);
 
-        final int frameworkFailoverTimeout = 60 * 60;
+        final double frameworkFailoverTimeout = 60 * 60;
 
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("CrateFramework")

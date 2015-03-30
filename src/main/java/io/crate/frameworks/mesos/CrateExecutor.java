@@ -59,7 +59,7 @@ public class CrateExecutor implements Executor {
         }
         if (crateTask != null) {
             LOGGER.debug("Prepare crateTask: {}", crateTask);
-            boolean prepared = prepare(crateTask);
+            boolean prepared = prepare(driver, crateTask);
             if (prepared) {
                 task = new Task(crateTask);
                 startProcess(driver, task);
@@ -104,18 +104,26 @@ public class CrateExecutor implements Executor {
         LOGGER.debug("error: {}", message);
     }
 
-    private boolean prepare(CrateExecutableInfo info) {
+    private boolean prepare(ExecutorDriver driver, CrateExecutableInfo info) {
         workingDirectory = getOrCreateDataDir();
         File dataPath = info.dataDir();
         if (dataPath != null && (!dataPath.exists() || !dataPath.isDirectory())) {
             LOGGER.debug("Option -Des.path.data is set to {} but does not exist or is not a directory.",
                     dataPath.getAbsolutePath());
+            CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
+                    MessageMissingResource.MISSING_DATA_PATH);
+            driver.sendFrameworkMessage(msg.toStream());
+            LOGGER.debug("message = {}", msg.toStream());
             return false;
         }
         File blobPath = info.blobDir();
         if (blobPath != null && (!blobPath.exists() || !blobPath.isDirectory())) {
             LOGGER.debug("Option -Des.path.blobs is set to {} but does not exist or is not a directory.",
                     blobPath.getAbsolutePath());
+            CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
+                    MessageMissingResource.MISSING_BLOB_PATH);
+            driver.sendFrameworkMessage(msg.toStream());
+            LOGGER.debug("message = {}", msg.toStream());
             return false;
         }
         return fetchAndExtractUri(info.uri());
@@ -209,7 +217,7 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_FAILED)
                 .build());
-        System.exit(2);
+        driver.stop();
     }
 
     protected void redirectProcess(Process process) {

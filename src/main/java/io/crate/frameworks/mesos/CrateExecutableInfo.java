@@ -48,7 +48,7 @@ public class CrateExecutableInfo implements Serializable {
     }
 
     public List<String> arguments() {
-        List<String> args = asList(
+        List<String> args = new ArrayList<>(asList(
                 "bin/crate",
                 String.format("-Des.cluster.name=%s", configuration.clusterName),
                 String.format("-Des.http.port=%d", configuration.httpPort),
@@ -56,7 +56,7 @@ public class CrateExecutableInfo implements Serializable {
                 String.format("-Des.node.name=%s", nodeNode),
                 String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
                 String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts)
-        );
+        ));
         if (configuration.dataPath != null) {
             args.add(String.format("-Des.path.data=%s", configuration.dataPath));
         }
@@ -75,13 +75,12 @@ public class CrateExecutableInfo implements Serializable {
     }
 
     public List<Environment.Variable> environment() {
-        List<Environment.Variable> env = asList(
+        return asList(
                 Environment.Variable.newBuilder()
                         .setName("CRATE_HEAP_SIZE")
                         .setValue(String.format("%sm", configuration.resHeap.longValue()))
                 .build()
         );
-        return env;
     }
 
     public URI uri() {

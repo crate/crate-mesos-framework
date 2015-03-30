@@ -10,19 +10,58 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 
 public class CrateScheduler implements Scheduler {
 
+    private final ScheduledThreadPoolExecutor threadPoolExecutor = new ScheduledThreadPoolExecutor(32);
+    private final HashMap<String, RetryTask> retryTasks = new HashMap<>();
     private String hostIP;
+
+    /**
+     * Task that removes a slaveId from the list of excluded slaves
+     * after a certain amount of time.
+     */
+    private class RetryTask implements Runnable {
+
+        private static final long MAX_DELAY = 600_000L; // 10min
+        private final String slaveId;
+        private final String reason;
+
+        private final AtomicInteger retryCount = new AtomicInteger(0);
+
+        public RetryTask(String slaveId, String reason) {
+            this.slaveId = slaveId;
+            this.reason = reason;
+        }
+
+        private long calculateDelay(int count) {
+            return Math.min(count * count * 1000L, MAX_DELAY);
+        }
+
+        public long delay() {
+            return calculateDelay(retryCount.intValue());
+        }
+
+        public long incrementAndGetDelay() {
+            return calculateDelay(retryCount.incrementAndGet());
+        }
+
+        @Override
+        public void run() {
+            LOGGER.debug("Remove {} from list of excluded slaves", slaveId);
+            stateStore.state().removeSlaveIdFromExcludeList(reason, slaveId);
+        }
+    }
 
     private class InstancesObserver implements Observer<Integer> {
         private SchedulerDriver driver;
@@ -32,7 +71,6 @@ public class CrateScheduler implements Scheduler {
         }
 
         public void update(Integer data) {
-            LOGGER.info("got new desiredInstances value: {}", data);
             if (driver != null) {
                 resizeCluster(driver);
             }
@@ -61,7 +99,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
-        hostIP = hostIp(masterInfo);
+        hostIP = hostIp();
         CrateState state = stateStore.state();
 
         state.frameworkId(frameworkID.getValue());
@@ -71,12 +109,19 @@ public class CrateScheduler implements Scheduler {
         instancesObserver.driver(driver);
         state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
+        for (String reason : state.excludedSlaves().keySet()) {
+            for (String slaveId : state.excludedSlaveIds(reason)) {
+                scheduleReAddSlaveId(reason, slaveId);
+            }
+
+        }
+
     }
 
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
-        LOGGER.info("Reregistered framwork. Starting task reconciliation.");
-        hostIP = hostIp(masterInfo);
+        LOGGER.info("Reregistered framework. Starting task reconciliation.");
+        hostIP = hostIp();
         CrateState state = stateStore.state();
         crateInstances = state.crateInstances();
         instancesObserver.driver(driver);
@@ -88,7 +133,6 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
         if (!reconcileTasks.isEmpty()) {
-            LOGGER.info("Declining all offers ... got some reconcile tasks");
             declineAllOffers(driver, offers);
             return;
         }
@@ -96,15 +140,11 @@ public class CrateScheduler implements Scheduler {
         CrateState state = stateStore.state();
         int required = state.missingInstances();
         if (required == 0) {
-            // nothing to do ...
             declineAllOffers(driver, offers);
         } else if (required < 0) {
-            // kill redundant instances ...
             killInstances(driver, required * -1);
             declineAllOffers(driver, offers);
         } else {
-            LOGGER.debug("Missing instances: {}", required);
-
             int launched = 0;
             for (Protos.Offer offer : offers) {
                 if (launched == required) {
@@ -136,7 +176,6 @@ public class CrateScheduler implements Scheduler {
 
                     Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
                     driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(taskInfo), filters);
-                    LOGGER.info("Submitted task ... {}", taskInfo.getTaskId().getValue());
                     launched++;
                 }
             }
@@ -163,7 +202,6 @@ public class CrateScheduler implements Scheduler {
                 )
                 .setCommand(cmd)
                 .build();
-
     }
 
     private CrateExecutableInfo obtainExecInfo(Protos.Offer offer, List<Protos.Attribute> attributes) {
@@ -173,6 +211,10 @@ public class CrateScheduler implements Scheduler {
         }
         if (!Resources.matches(offer.getResourcesList(), configuration)) {
             LOGGER.info("can't use offer {}; not enough resources", offer.getId().getValue());
+            return null;
+        }
+        if (offer.hasSlaveId() && stateStore.state().excludedSlaveIds().contains(offer.getSlaveId().getValue())) {
+            LOGGER.info("can't use offer {}; slaveId {} is blacklisted", offer.getId().getValue(), offer.getSlaveId().getValue());
             return null;
         }
         return new CrateExecutableInfo(
@@ -243,6 +285,8 @@ public class CrateScheduler implements Scheduler {
             case TASK_RUNNING:
                 LOGGER.debug("update state to running ...");
                 crateInstances.setToRunning(taskId);
+                retryTasks.remove(taskStatus.getSlaveId().getValue());
+                stateStore.state().removeSlaveIdFromExcludeList(taskStatus.getSlaveId().getValue());
                 break;
             case TASK_STAGING:
             case TASK_STARTING:
@@ -268,13 +312,15 @@ public class CrateScheduler implements Scheduler {
 
     private void resizeCluster(SchedulerDriver driver) {
         int instancesMissing = stateStore.state().missingInstances();
-        if (instancesMissing == 0) return;
-        LOGGER.debug("Resize cluster. {} missing instances.", instancesMissing);
+        if (instancesMissing != 0) {
+            LOGGER.debug("Resize cluster. {} missing instances.", instancesMissing);
+        }
         if (instancesMissing > 0) {
             requestMoreResources(driver, instancesMissing);
         } else if (instancesMissing < 0) {
             killInstances(driver, instancesMissing * -1);
         }
+        stateStore.save();
     }
 
     private void requestMoreResources(SchedulerDriver driver, int instancesMissing) {
@@ -292,7 +338,39 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
-        LOGGER.info("frameworkMessage()");
+        LOGGER.info("Received framework message from executor {} on slave {}", executorID.getValue(), slaveID.getValue());
+        CrateMessage data = null;
+        try {
+            data = CrateMessage.fromStream(bytes);
+        } catch (IOException e) {
+            LOGGER.error("Failed to read message from stream.", e);
+            return;
+        }
+        switch (data.type()) {
+            case MESSAGE_MISSING_RESOURCE:
+                MessageMissingResource.Reason reason = ((MessageMissingResource) data.data()).reason();
+                LOGGER.debug("Remove bad host from offers: {} Reason: {}", slaveID.getValue(), reason.toString());
+                stateStore.state().addSlaveIdToExcludeList(reason.toString(), slaveID.getValue());
+                stateStore.save();
+                scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
+                break;
+        }
+    }
+
+    /**
+     * Remove slaveId from list of excluded slaves after delay.
+     */
+    private void scheduleReAddSlaveId(final String reason, final String slaveID) {
+        RetryTask task = null;
+        if (retryTasks.containsKey(slaveID)) {
+            task = retryTasks.get(slaveID);
+        }
+        if (task == null) {
+            task = new RetryTask(slaveID, reason);
+            retryTasks.put(slaveID, task);
+        }
+        threadPoolExecutor.schedule(task, task.incrementAndGetDelay(), TimeUnit.MILLISECONDS);
+        LOGGER.debug("Waiting for {}ms to use slave {} again ...", task.delay(), slaveID);
     }
 
     @Override
@@ -333,24 +411,17 @@ public class CrateScheduler implements Scheduler {
         }
     }
 
-    private static String hostIp(Protos.MasterInfo masterInfo) {
+    private static String hostIp() {
         String ip = null;
         try {
             ip = InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            LOGGER.warn("Could not obtain host IP", e);
             ip = "127.0.0.1";
         }
+        LOGGER.debug("Master IP {}", ip);
         return ip;
     }
 
-    public static String intToIp(int i) {
-        return String.format("%d.%d.%d.%d",
-                ((i >> 24 ) & 0xFF),
-                ((i >> 16 ) & 0xFF),
-                ((i >> 8 ) & 0xFF),
-                ( i & 0xFF)
-        );
-    }
 }
 
