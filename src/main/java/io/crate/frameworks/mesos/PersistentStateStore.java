@@ -36,13 +36,11 @@ public class PersistentStateStore {
     }
 
     public synchronized void save() {
-        LOGGER.debug("Saving CrateState to Zookeeper ...");
-        LOGGER.debug(state.toString());
         stateVariable = stateVariable.mutate(state.toStream());
         try {
             stateVariable = zk.store(stateVariable).get();
             if (stateVariable == null) {
-                LOGGER.error("couldn't save state in zookeeper");
+                LOGGER.error("Couldn't save state in Zookeeper");
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -52,10 +50,8 @@ public class PersistentStateStore {
     }
 
     private CrateState restore() {
-        LOGGER.debug("Restoring CrateState from Zookeeper ...");
         try {
             stateVariable = zkFuture.get();
-            LOGGER.info("got {} bytes from zk", stateVariable.value().length);
         } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
             LOGGER.error(e.getMessage());

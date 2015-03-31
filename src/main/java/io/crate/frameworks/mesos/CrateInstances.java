@@ -2,6 +2,8 @@ package io.crate.frameworks.mesos;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.*;
@@ -10,9 +12,6 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
 
     private final ArrayList<CrateInstance> instances = new ArrayList<>();
     private HashSet<String> hosts;
-
-    public CrateInstances() {
-    }
 
     public int size() {
         return instances.size();
@@ -49,18 +48,14 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
     }
 
     public void removeTask(String taskId) {
-        List<Integer> toRemove = new ArrayList<>();
-        for (int i = 0; i < instances.size(); i++) {
+        for (int i = instances.size() -1; i >= 0; i--) {
             CrateInstance crateInstance = instances.get(i);
             if (crateInstance.taskId().equals(taskId)) {
-                toRemove.add(i);
+                instances.remove(i);
                 if (hosts != null) {
                     hosts.remove(crateInstance.hostname());
                 }
             }
-        }
-        for (Integer i : toRemove) {
-            instances.remove((int) i);
         }
     }
 

@@ -1,10 +1,12 @@
 package io.crate.frameworks.mesos;
 
 import com.google.common.base.Optional;
+import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.*;
 
 public class CrateState implements Serializable {
 
@@ -13,8 +15,10 @@ public class CrateState implements Serializable {
     private Observable<Integer> desiredInstances = new Observable<>(UNDEFINED_DESIRED_INSTANCES);
     private String frameworkId = null;
     private CrateInstances crateInstances = new CrateInstances();
+    private HashMap<String, List<String>> excludedSlaves = new HashMap<>();
 
     private static final long serialVersionUID = 1L;
+
     public static final int UNDEFINED_DESIRED_INSTANCES = -1;
 
 
@@ -68,6 +72,47 @@ public class CrateState implements Serializable {
 
     public int missingInstances() {
         return desiredInstances().getValue() - crateInstances().size();
+    }
+
+
+    public boolean addSlaveIdToExcludeList(String reason, String slaveId) {
+        if (!excludedSlaves.containsKey(reason)) {
+            excludedSlaves.put(reason, new ArrayList<String>());
+        }
+        return excludedSlaves.get(reason).add(slaveId);
+    }
+
+    public void removeSlaveIdFromExcludeList(String slaveId) {
+        for (String key : excludedSlaves.keySet()) {
+            excludedSlaves.get(key).remove(slaveId);
+        }
+    }
+    public boolean removeSlaveIdFromExcludeList(String reason, String slaveId) {
+        if (!excludedSlaves.containsKey(reason)) {
+            return false;
+        }
+        return excludedSlaves.get(reason).remove(slaveId);
+    }
+
+    public List<String> excludedSlaveIds(String reason){
+        if (!excludedSlaves.containsKey(reason)) {
+            return Collections.emptyList();
+        }
+        return excludedSlaves.get(reason);
+    }
+
+    public List<String> excludedSlaveIds() {
+        if (excludedSlaves.size() == 0) return Collections.emptyList();
+        List<String> allIds = new ArrayList<>();
+        for (String key : excludedSlaves.keySet()) {
+            allIds.addAll(excludedSlaves.get(key));
+        }
+        return allIds;
+
+    }
+
+    public HashMap<String, List<String>> excludedSlaves () {
+        return excludedSlaves;
     }
 
     @Override

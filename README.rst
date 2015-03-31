@@ -83,6 +83,10 @@ OPTION                       REQUIRED       DEFAULT
 --------------------------- -------------- -----------------------
 ``--crate-transport-port``  false          4300
 --------------------------- -------------- -----------------------
+``--crate-data-path``       false          not set
+--------------------------- -------------- -----------------------
+``--crate-blob-path``       false          not set
+--------------------------- -------------- -----------------------
 ``--api-port``              false          4040
 --------------------------- -------------- -----------------------
 ``--resource-cpus``         false          0.5
@@ -95,7 +99,20 @@ OPTION                       REQUIRED       DEFAULT
 =========================== ============== =======================
 
 
-Crate options
+Persistent Data Paths
+---------------------
+
+Crate has 2 options for persistent data paths: one for data (tables) and one
+for blobs.
+
+You can specify both paths (``--crate-data-path``, ``--crate-blob-path``) when
+starting the framework.
+
+If the paths are specified, the executor will check if the path exists on the
+slave. If the path does not exist, the executor won't start Crate on that slave.
+
+
+Crate Options
 -------------
 
 Configuration options for crate instances can also be passed to the framework.
@@ -122,6 +139,21 @@ You can get information about the cluster from the ``/cluster`` endpoint::
 You can resize the cluster by setting the number of desired instances::
 
     curl -X POST -H "Content-Type: application/json" localhost:4040/cluster/resize -d '{"instances": 5}'
+
+
+Resizing a Cluster
+==================
+
+
+A cluster can be resized by changing the number of instances using the Framwork API (see above).
+
+Increasing the number of instances is always possible, unless the number of desired instances is
+greater than the number of slaves. The framework enforces the contraint that there is only
+one Crate instance per framework running on each host.
+
+The Crate Framework shuts down Crate instances gracefully (see `Configuration`_ and `Zero Downtime Upgrade`_)
+when decreasing the number of instances in a cluster.
+
 
 
 Service Discovery for Applications using DNS
@@ -240,3 +272,6 @@ To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _Mesos: http://mesos.apache.org
 .. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/
 .. _Multi Zone Crate Cluster: https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
+.. _Configuration: https://crate.io/docs/en/stable/configuration.html#graceful-stop
+.. _Zero Downtime Upgrade: https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html#step-2-graceful-stop
+

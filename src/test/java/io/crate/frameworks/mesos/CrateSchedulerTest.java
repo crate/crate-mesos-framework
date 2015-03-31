@@ -10,11 +10,10 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
+import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
@@ -22,6 +21,8 @@ import static org.mockito.Matchers.anyCollectionOf;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static org.junit.Assert.*;
 
 public class CrateSchedulerTest {
 
@@ -115,5 +116,77 @@ public class CrateSchedulerTest {
         CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
         crateScheduler.registered(driver, frameworkID, masterInfo);
         return crateScheduler;
+    }
+
+    private static Protos.ExecutorInfo newExecutor(String n) {
+        return Protos.ExecutorInfo.newBuilder()
+                .setName("Crate Executor")
+                .setExecutorId(
+                        Protos.ExecutorID.newBuilder()
+                                .setValue("newExecutor-" + n)
+                                .build()
+                )
+                .setCommand(Protos.CommandInfo.newBuilder()
+                        .setValue(String.format("java -cp crate-mesos.jar io.crate.frameworks.mesos.CrateExecutor"))
+                        .build())
+                .build();
+    }
+
+    @Test
+    public void testSlaveExclusion() throws Exception {
+        Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("framework-1").build();
+        Configuration configuration = new Configuration();
+        CrateScheduler scheduler = initScheduler(configuration, frameworkID);
+
+        CrateInstances instances = new CrateInstances();
+        state.desiredInstances(1);
+        state.instances(instances);
+
+        Protos.SlaveID salve1 = Protos.SlaveID.newBuilder()
+                .setValue("slave-1")
+                .build();
+
+        CrateMessage<MessageMissingResource> msg = new CrateMessage<>(CrateMessage.Type.MESSAGE_MISSING_RESOURCE,
+                MessageMissingResource.MISSING_DATA_PATH);
+
+        scheduler.frameworkMessage(driver, newExecutor("1").getExecutorId(), salve1, msg.toStream());
+
+        List<Protos.Offer> offers = new ArrayList<>();
+        offers.add(Protos.Offer.newBuilder()
+                .setId(Protos.OfferID.newBuilder().setValue("offer1"))
+                .setHostname("slave1.crate.io")
+                .setSlaveId(salve1)
+                .setFrameworkId(frameworkID)
+                .addAllResources(configuration.getAllRequiredResources()).build());
+
+        scheduler.resourceOffers(driver, offers);
+
+        final String reason = MessageMissingResource.MISSING_DATA_PATH.reason().toString();
+        assertEquals(0, state.crateInstances().size());
+        assertEquals(asList("slave-1"), state.excludedSlaveIds());
+        assertEquals(asList("slave-1"), state.excludedSlaveIds(reason));
+        assertEquals(new HashMap<String, List<String>>() {
+            {
+                put(reason, asList("slave-1"));
+            }
+        }, state.excludedSlaves());
+
+        Protos.TaskStatus status1 = Protos.TaskStatus.newBuilder()
+                .setSlaveId(salve1)
+                .setTaskId(taskID("task-1"))
+                .setState(Protos.TaskState.TASK_RUNNING)
+                .build();
+        scheduler.statusUpdate(driver, status1);
+
+        scheduler.resourceOffers(driver, offers);
+
+        assertEquals(1, state.crateInstances().size());
+        assertEquals(Collections.emptyList(), state.excludedSlaveIds());
+        assertEquals(Collections.emptyList(), state.excludedSlaveIds(reason));
+        assertEquals(new HashMap<String, List<String>>() {
+            {
+                put(reason, Collections.<String>emptyList());
+            }
+        }, state.excludedSlaves());
     }
 }
