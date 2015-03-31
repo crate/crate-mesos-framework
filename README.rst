@@ -145,7 +145,7 @@ Resizing a Cluster
 ==================
 
 
-A cluster can be resized by changing the number of instances using the Framwork API (see above).
+A Crate cluster can be resized by changing the number of instances using the Framwork API (see API Usage above).
 
 Increasing the number of instances is always possible, unless the number of desired instances is
 greater than the number of slaves. The framework enforces the contraint that there is only
@@ -154,6 +154,12 @@ one Crate instance per framework running on each host.
 The Crate Framework shuts down Crate instances gracefully (see `Configuration`_ and `Zero Downtime Upgrade`_)
 when decreasing the number of instances in a cluster.
 
+If you want to ensure green health (full data + replica availability), you need to change the
+``cluster.graceful_stop.min_availability`` setting to ``full``.
+This option will cause the Crate node to try move all shards off the node before shutting down. It this is not possible,
+the node will **not** shut down and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate Framework
+will continue to try to shut down the node again. Such a state is indicated by the Framwork API when the number of running
+instances does not approach he number of desired instances when scaling down.
 
 
 Service Discovery for Applications using DNS
