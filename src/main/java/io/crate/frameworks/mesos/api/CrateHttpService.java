@@ -8,6 +8,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -26,7 +27,7 @@ public class CrateHttpService {
         ResourceConfig httpConf = new ResourceConfig()
                 .register(new CrateRestResource(crateState, conf))
                 .packages(PACKAGE_NAMESPACE);
-        URI httpUri = URI.create(String.format("http://0.0.0.0:%d/", conf.apiPort));
+        URI httpUri = UriBuilder.fromPath("/").scheme("http").host("0.0.0.0").port(conf.apiPort).build();
         server = GrizzlyHttpServerFactory.createHttpServer(httpUri, httpConf);
         server.getServerConfiguration().addHttpHandler(
                 new StaticHttpHandler(getRoot()),
@@ -40,7 +41,7 @@ public class CrateHttpService {
         try {
             jarPath = URLDecoder.decode(url.getFile(), "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            LOGGER.debug("Could not encode jar file path", e);
+            LOGGER.error("Could not read root directory path for jar file.", e);
             System.exit(2);
         }
 

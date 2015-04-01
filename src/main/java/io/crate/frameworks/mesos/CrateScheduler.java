@@ -269,9 +269,7 @@ public class CrateScheduler implements Scheduler {
                         if (instance == null) {
                             LOGGER.error("Got a task for an instance that isn't tracked. HELP :(");
                         } else if (!instance.version().equals(configuration.version)) {
-                            LOGGER.info("Running instance has version {}. Configured is {}. Will change configuration to {}",
-                                    instance.version(), configuration.version, instance.version()
-                            );
+                            LOGGER.info("Running instance has version {}, Configured is {}.", instance.version(), configuration.version);
                             configuration.version(instance.version());
                         }
                     }

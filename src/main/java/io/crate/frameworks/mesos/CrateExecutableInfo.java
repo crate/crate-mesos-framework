@@ -36,15 +36,7 @@ public class CrateExecutableInfo implements Serializable {
         this.attributes = attributes;
         this.downloadURI = URI.create(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version));
         this.nodeNode = String.format("%s-%s", configuration.clusterName, execId);
-        this.unicastHosts = unicastHosts(crateInstances);
-    }
-
-    private static String unicastHosts(CrateInstances instances) {
-        List<String> hosts = new ArrayList<>(instances.size());
-        for (CrateInstance crateInstance : instances) {
-            hosts.add(String.format("%s:%s", crateInstance.hostname(), crateInstance.transportPort()));
-        }
-        return Joiner.on(",").join(hosts);
+        this.unicastHosts = crateInstances.unicastHosts();
     }
 
     public List<String> arguments() {

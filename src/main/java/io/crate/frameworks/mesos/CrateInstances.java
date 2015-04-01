@@ -1,5 +1,6 @@
 package io.crate.frameworks.mesos;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -19,6 +20,14 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
 
     public boolean anyOnHost(final String hostname) {
         return hosts().contains(hostname);
+    }
+
+    public String unicastHosts() {
+        List<String> hosts = new ArrayList<>(instances.size());
+        for (CrateInstance crateInstance : instances) {
+            hosts.add(String.format("%s:%s", crateInstance.hostname(), crateInstance.transportPort()));
+        }
+        return Joiner.on(",").join(hosts);
     }
 
     public Set<String> hosts() {
