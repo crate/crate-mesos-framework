@@ -39,6 +39,14 @@ public class CrateExecutableInfo implements Serializable {
         this.unicastHosts = crateInstances.unicastHosts();
     }
 
+    public String nodeName() {
+        return nodeNode;
+    }
+
+    public int transportPort() {
+        return configuration.transportPort;
+    }
+
     public List<String> arguments() {
         List<String> args = new ArrayList<>(asList(
                 "bin/crate",

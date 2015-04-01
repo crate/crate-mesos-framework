@@ -159,7 +159,7 @@ If you want to ensure green health (full data + replica availability), you need 
 This option will cause the Crate node to try move all shards off the node before shutting down. It this is not possible,
 the node will **not** shut down and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate Framework
 will continue to try to shut down the node again. Such a state is indicated by the Framwork API when the number of running
-instances does not approach he number of desired instances when scaling down.
+instances does not approach the number of desired instances when scaling down.
 
 
 Service Discovery for Applications using DNS

@@ -50,7 +50,7 @@ public class CrateInstancesTest {
         cluster.addInstance(newInstance("127.0.0.1", "1"));
         cluster.addInstance(newInstance("127.0.0.2", "2"));
 
-        cluster.setToRunning("1");
+        cluster.setToRunning("1", "id-1");
 
         HashSet<CrateInstance.State> states = new HashSet<>(2);
         for (CrateInstance instance : cluster) {

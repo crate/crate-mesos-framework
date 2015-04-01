@@ -1,6 +1,10 @@
 package io.crate.frameworks.mesos;
 
 import com.google.common.base.Joiner;
+import com.google.protobuf.ByteString;
+import io.crate.action.sql.SQLRequest;
+import io.crate.action.sql.SQLResponse;
+import io.crate.client.CrateClient;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
@@ -22,19 +26,56 @@ import java.util.List;
 public class CrateExecutor implements Executor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutor.class);
-
     private Task task;
     private File workingDirectory;
     private TaskID currentTaskId;
+    private ExecutorDriver driver;
+    private String nodeId; // id of the crate instance
+
+    private class StartupInspectionTask implements Runnable {
+
+        private static final String STATEMENT = "select id from sys.nodes where name = ?";
+        private final CrateClient client;
+        private final Object[] args;
+
+        public StartupInspectionTask(String host, String nodeName) {
+            client = new CrateClient(host);
+            args = new Object[] { nodeName };
+        }
+
+        @Override
+        public void run() {
+            SQLRequest request = new SQLRequest(STATEMENT, args);
+            SQLResponse response = null;
+            while (response == null) {
+                try {
+                    Thread.sleep(1000L);
+                    response = client.sql(request).actionGet();
+                } catch (InterruptedException e) {
+                    LOGGER.error("Crate startup was interrupted. Could not obtain node id.", e);
+                    continue;
+                } catch (Exception e) {
+                    LOGGER.debug("Crate node is not running yet ... waiting to start up!");
+                    response = null;
+                }
+            }
+            client.close();
+            onCrateClientResponse(response);
+        }
+
+    }
 
     @Override
     public void registered(ExecutorDriver driver, ExecutorInfo executorInfo, FrameworkInfo frameworkInfo, SlaveInfo slaveInfo) {
         LOGGER.info("Registered executor {}", executorInfo.getExecutorId().getValue());
+        this.driver = driver;
+        nodeId = null;
     }
 
     @Override
     public void reregistered(ExecutorDriver driver, SlaveInfo slaveInfo) {
         LOGGER.debug("Re-registered executor");
+        this.driver = driver;
     }
 
     @Override
@@ -63,10 +104,11 @@ public class CrateExecutor implements Executor {
             if (prepared) {
                 task = new Task(crateTask);
                 startProcess(driver, task);
-                driver.sendStatusUpdate(TaskStatus.newBuilder()
-                        .setTaskId(currentTaskId)
-                        .setState(TaskState.TASK_RUNNING)
-                        .build());
+                Thread startupCheck = new Thread(new StartupInspectionTask(
+                        String.format("localhost:%s", crateTask.transportPort()),
+                        crateTask.nodeName())
+                );
+                startupCheck.run();
                 return;
             }
         }
@@ -235,6 +277,19 @@ public class CrateExecutor implements Executor {
         stdoutRedirect.start();
         StreamRedirect stderrRedirect = new StreamRedirect(process.getErrorStream(), System.err);
         stderrRedirect.start();
+    }
+
+    private void onCrateClientResponse(SQLResponse response) {
+        TaskStatus.Builder status = TaskStatus.newBuilder()
+                .setTaskId(currentTaskId)
+                .setState(TaskState.TASK_RUNNING);
+        if (response != null) {
+            LOGGER.debug("SQLResponse: rows = {}", response.rows());
+            nodeId = (String) response.rows()[0][0];
+            LOGGER.info("NODE ID = {}", nodeId);
+            status.setData(ByteString.copyFromUtf8(nodeId));
+        }
+        driver.sendStatusUpdate(status.build());
     }
 
     public class Task {

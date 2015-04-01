@@ -48,10 +48,11 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
         }
     }
 
-    public void setToRunning(String taskId) {
+    public void setToRunning(String taskId, String nodeId) {
         for (CrateInstance instance : instances) {
             if (instance.taskId().equals(taskId)) {
                 instance.state(CrateInstance.State.RUNNING);
+                instance.nodeId(nodeId);
             }
         }
     }

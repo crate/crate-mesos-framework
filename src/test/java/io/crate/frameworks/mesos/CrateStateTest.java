@@ -30,7 +30,7 @@ public class CrateStateTest {
         CrateInstances cluster = new CrateInstances();
         cluster.addInstance(new CrateInstance("127.0.0.1", "1", "0.47.0", 4300));
         cluster.addInstance(new CrateInstance("127.0.0.2", "2", "0.47.0", 4300));
-        cluster.setToRunning("1");
+        cluster.setToRunning("1", "id-1");
         state.instances(cluster);
 
         byte[] bytes = state.toStream();

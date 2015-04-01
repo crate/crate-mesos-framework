@@ -103,7 +103,6 @@ public class Main {
 
         String mesosMaster = configuration.mesosMaster();
         if (System.getenv("MESOS_AUTHENTICATE") != null) {
-            // todo: authentication
             System.out.println("Enabling authentication for the framework");
 
             if (System.getenv("DEFAULT_PRINCIPAL") == null) {

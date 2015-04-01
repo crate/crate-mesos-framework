@@ -281,7 +281,7 @@ public class CrateScheduler implements Scheduler {
         switch (taskStatus.getState()) {
             case TASK_RUNNING:
                 LOGGER.debug("update state to running ...");
-                crateInstances.setToRunning(taskId);
+                crateInstances.setToRunning(taskId, taskStatus.getData().toStringUtf8());
                 retryTasks.remove(taskStatus.getSlaveId().getValue());
                 stateStore.state().removeSlaveIdFromExcludeList(taskStatus.getSlaveId().getValue());
                 break;
@@ -388,6 +388,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void error(SchedulerDriver driver, String s) {
         LOGGER.error("error() {}", s);
+        driver.stop();
     }
 
     void reconcileTasks(SchedulerDriver driver) {

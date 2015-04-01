@@ -8,6 +8,7 @@ public class CrateInstance implements Serializable {
     private final String hostname;
     private final String version;
     private final int transportPort;
+    private String nodeId;
     private State state;
 
     public enum State implements Serializable {
@@ -20,11 +21,16 @@ public class CrateInstance implements Serializable {
         this.hostname = hostname;
         this.version = version;
         this.transportPort = transportPort;
+        nodeId = null;
         state = State.PENDING;
     }
 
     public String taskId() {
         return taskId;
+    }
+
+    public void nodeId(String nodeId) {
+        this.nodeId = nodeId;
     }
 
     public State state() {
