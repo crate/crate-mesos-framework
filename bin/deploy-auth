@@ -1,0 +1,2 @@
+#!/bin/bash
+./gradlew fatJar && vagrant ssh -c "MESOS_AUTHENTICATE=true DEFAULT_PRINCIPAL=crate DEFAULT_SECRET=foo java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar $*"

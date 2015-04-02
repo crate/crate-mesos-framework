@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -70,6 +69,27 @@ public class Main {
     }
 
 
+    private static Optional<Protos.Credential> readCredentials() {
+        if (System.getenv("MESOS_AUTHENTICATE") != null) {
+            LOGGER.debug("Enabling authentication for the framework");
+            final String principal = System.getenv("DEFAULT_PRINCIPAL");
+            final String secret = System.getenv("DEFAULT_SECRET");
+            if (principal == null) {
+                LOGGER.error("Expecting authentication principal in the environment");
+                System.exit(1);
+            }
+            Protos.Credential.Builder credential = Protos.Credential.newBuilder().setPrincipal(principal);
+            if (secret == null) {
+                LOGGER.error("Expecting authentication secret in the environment");
+            } else {
+                credential.setSecret(ByteString.copyFrom(secret.getBytes()));
+            }
+            return Optional.of(credential.build());
+        } else {
+            return Optional.absent();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
         Configuration configuration = parseConfiguration(args);
@@ -98,26 +118,10 @@ public class Main {
         MesosSchedulerDriver driver;
 
         String mesosMaster = configuration.mesosMaster();
-        if (System.getenv("MESOS_AUTHENTICATE") != null) {
-            System.out.println("Enabling authentication for the framework");
-
-            if (System.getenv("DEFAULT_PRINCIPAL") == null) {
-                System.err.println("Expecting authentication principal in the environment");
-                System.exit(1);
-            }
-
-            if (System.getenv("DEFAULT_SECRET") == null) {
-                System.err.println("Expecting authentication secret in the environment");
-                System.exit(1);
-            }
-
-            Protos.Credential credential = Protos.Credential.newBuilder()
-                    .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
-                    .setSecret(ByteString.copyFrom(System.getenv("DEFAULT_SECRET").getBytes()))
-                    .build();
-
-            frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
-            driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMaster, credential);
+        Optional<Protos.Credential> credential = readCredentials();
+        if (credential.isPresent()) {
+            frameworkBuilder.setPrincipal(credential.get().getPrincipal());
+            driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMaster, credential.get());
         } else {
             frameworkBuilder.setPrincipal("crate-framework");
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), mesosMaster);
