@@ -8,12 +8,12 @@ buildscript {
     }
 }
 
-
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'eu.appsatori.fatjar'
-
-
+  
+group = 'io.crate'
+  
 repositories {
     jcenter()
 }
@@ -25,10 +25,44 @@ test {
     }
 }
 
+task getVersion (dependsOn: 'classes') << {
+    def stdout = new ByteArrayOutputStream()
+    javaexec {
+        classpath = sourceSets.main.runtimeClasspath
+        main = 'io.crate.frameworks.mesos.Version'
+        standardOutput = stdout
+    }
+    
+    ext.gitTag = "git describe".execute().in.text.trim()
+    ext.version = stdout.toString().trim().split(" ")[1].replace(',','').trim()
+    project.version = version
+
+    logger.quiet("----------------------------")
+    logger.quiet(" gitTag:  " + gitTag)
+    logger.quiet(" version: " + version)
+    logger.quiet("----------------------------")
+}
+
+task version {
+    dependsOn getVersion
+    doLast {
+	logger.error(getVersion.version)
+    }
+}
+
 fatJar {
+    dependsOn getVersion
+    doFirst {
+	manifest {
+	    attributes 'Implementation-Version': getVersion.version
+	}
+    }
     manifest {
-        attributes 'Main-Class': 'io.crate.frameworks.mesos.Main',
-        'Implementation-Title': 'Crate-Mesos'
+	attributes 'Main-Class': 'io.crate.frameworks.mesos.Main',
+	  'Implementation-Title': 'Crate Mesos Framework',
+	  'Built-Date': new Date(),
+	  'Built-JDK': System.getProperty('java.version'),
+	  'Built-Gradle': gradle.gradleVersion
     }
 }
 
@@ -57,6 +91,21 @@ dependencies {
 def jvmTestFlags = ['-ea']
 
 idea {
+    project {
+        languageLevel = 'JDK_1_7'
+
+        ipr {
+            withXml { provider ->
+                def node = provider.asNode()
+                def copyrightManager = node.component.find { it.'@name' == 'CopyrightManager' }
+                copyrightManager.@default = "CrateASL2"
+                def aslCopyright = copyrightManager.copyright.find { it.option.find { it.@name == "myName" }?.@value == "CrateASL2" }
+                if (aslCopyright == null) {
+                    copyrightManager.append(new XmlParser().parse(file("copyright.xml")))
+                }
+            }
+        }
+    }
     workspace {
         iws.withXml { xmlFile ->
             def runManager = xmlFile.asNode().component.find { it.@name == 'RunManager' }
@@ -71,5 +120,5 @@ idea {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.1'
+    gradleVersion = '2.3'
 }
