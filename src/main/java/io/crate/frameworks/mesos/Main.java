@@ -79,6 +79,7 @@ public class Main {
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("CrateFramework")
                 .setUser("")
+                .setCheckpoint(true) // will be enabled by default in Mesos 0.22
                 .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
 
         PersistentStateStore stateStore = new PersistentStateStore(
@@ -89,11 +90,6 @@ public class Main {
         Optional<String> frameworkId = stateStore.state().frameworkId();
         if (frameworkId.isPresent()) {
             frameworkBuilder.setId(Protos.FrameworkID.newBuilder().setValue(frameworkId.get()).build());
-        }
-
-        if (System.getenv("MESOS_CHECKPOINT") != null) {
-            System.out.println("Enabling checkpoint for the framework");
-            frameworkBuilder.setCheckpoint(true);
         }
 
         final Scheduler scheduler = new CrateScheduler(stateStore, configuration);

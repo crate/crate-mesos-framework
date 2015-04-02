@@ -28,9 +28,9 @@ public class CrateExecutor implements Executor {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutor.class);
     private Task task;
     private File workingDirectory;
-    private TaskID currentTaskId;
+    private TaskID currentTaskId = null;
     private ExecutorDriver driver;
-    private String nodeId; // id of the crate instance
+    private String nodeId = null; // id of the crate instance
 
     private class StartupInspectionTask implements Runnable {
 
@@ -69,23 +69,25 @@ public class CrateExecutor implements Executor {
     public void registered(ExecutorDriver driver, ExecutorInfo executorInfo, FrameworkInfo frameworkInfo, SlaveInfo slaveInfo) {
         LOGGER.info("Registered executor {}", executorInfo.getExecutorId().getValue());
         this.driver = driver;
-        nodeId = null;
     }
 
     @Override
     public void reregistered(ExecutorDriver driver, SlaveInfo slaveInfo) {
-        LOGGER.debug("Re-registered executor");
+        LOGGER.info("Re-registered executor");
         this.driver = driver;
     }
 
     @Override
     public void disconnected(ExecutorDriver driver) {
-        LOGGER.warn("CrateExecutor was disconnected");
-        // todo: we might need to implement some functionality for slave failover
+        LOGGER.warn("CrateExecutor was disconnected from driver {}", driver);
     }
 
     @Override
     public void launchTask(ExecutorDriver driver, TaskInfo taskInfo) {
+        if (task != null && taskInfo.getTaskId().equals(currentTaskId)) {
+            LOGGER.warn("Task {} already running ... do nothing!", currentTaskId.getValue());
+            return;
+        }
         currentTaskId = taskInfo.getTaskId();
         driver.sendStatusUpdate(TaskStatus.newBuilder()
                 .setTaskId(currentTaskId)
@@ -141,7 +143,12 @@ public class CrateExecutor implements Executor {
                         .build());
             }
         } else  {
-            LOGGER.error("No running task found.");
+            LOGGER.error("No running task found. Stopping executor.");
+            driver.sendStatusUpdate(TaskStatus.newBuilder()
+                    .setTaskId(taskId)
+                    .setState(TaskState.TASK_LOST)
+                    .build());
+            driver.stop();
         }
     }
 
@@ -152,12 +159,12 @@ public class CrateExecutor implements Executor {
 
     @Override
     public void shutdown(ExecutorDriver driver) {
-        LOGGER.debug("shutdown: {}", driver);
+        LOGGER.warn("Executor driver is shuttin down ...");
     }
 
     @Override
     public void error(ExecutorDriver driver, String message) {
-        LOGGER.debug("error: {}", message);
+        LOGGER.error("Fatal error has occured with the executor driver and/or executor. {}", message);
     }
 
     private boolean prepare(ExecutorDriver driver, CrateExecutableInfo info) {
