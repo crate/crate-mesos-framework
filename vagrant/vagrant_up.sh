@@ -6,6 +6,8 @@ yum -y install mesos
 yum -y install mesosphere-zookeeper
 yum -y install docker
 yum -y install /usr/bin/dig
+yum -y install cyrus-sasl
+yum -y install cyrus-sasl-md5
 
 
 echo 1 > /var/lib/zookeeper/myid
@@ -13,6 +15,11 @@ echo 'zk://127.0.0.1:2181/mesos' > /etc/mesos/zk
 echo 'docker,mesos' > /etc/mesos-slave/containerizers
 echo '10mins' > /etc/mesos-slave/executor_registration_timeout
 echo 'ports(*):[31000-31099, 31101-32000, 4200-4399]' > /etc/mesos-slave/resources
+echo 'crate-demo' > /etc/mesos-master/cluster
+echo '/etc/mesos/passwd' > /etc/mesos-master/credentials
+echo '/etc/mesos/passwd' > /etc/mesos-slave/credential
+echo 'crammd5' > /etc/mesos-master/authenticators
+echo 'crate foo' > /etc/mesos/passwd
 
 
 
