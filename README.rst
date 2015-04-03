@@ -143,7 +143,7 @@ Resources
 =========
 
 Data Path
-.........
+---------
 
 If you are using `Persistent Data Paths`_ (which is recommended), you need to make sure
 that the user ``crate`` has **write** permissions at these locations.
