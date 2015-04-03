@@ -90,8 +90,8 @@ public class Configuration implements Serializable{
         return Arrays.asList(
                 SaneProtos.cpus(resCpus),
                 SaneProtos.mem(resMemory),
-                SaneProtos.ports(httpPort, httpPort, "*"),
-                SaneProtos.ports(transportPort, transportPort, "*")
+                SaneProtos.ports(httpPort, httpPort),
+                SaneProtos.ports(transportPort, transportPort)
         );
     }
 
