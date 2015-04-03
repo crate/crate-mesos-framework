@@ -105,6 +105,8 @@ public class CrateExecutableInfo implements Serializable {
         );
     }
 
+    public Integer httpPort() { return configuration.httpPort; }
+
     public URI uri() {
         return downloadURI;
     }
