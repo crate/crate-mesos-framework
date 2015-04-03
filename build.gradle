@@ -41,13 +41,15 @@ task getVersion (dependsOn: 'classes') << {
     logger.quiet(" gitTag:  " + gitTag)
     logger.quiet(" version: " + version)
     logger.quiet("----------------------------")
+    
+    if (gradle.taskGraph.hasTask(release)) {
+        assert gitTag == version, "Version conflict: git tag: '" + gitTag + "' does not match release version: '" + version + "'"
+    }
+
 }
 
-task version {
-    dependsOn getVersion
-    doLast {
-	logger.error(getVersion.version)
-    }
+task release(dependsOn: 'fatJar') << {
+    logger.quiet("Release: " + project.name + " (" + getVersion.version + ")");
 }
 
 fatJar {
