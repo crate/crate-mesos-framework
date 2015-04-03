@@ -21,7 +21,7 @@ echo '/etc/mesos/passwd' > /etc/mesos-slave/credential
 echo 'crammd5' > /etc/mesos-master/authenticators
 echo 'crate foo' > /etc/mesos/passwd
 
-
+useradd crate -s /bin/bash -m
 
 yum -y install golang
 yum -y install git

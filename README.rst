@@ -28,7 +28,7 @@ Execute via Command Line
 
 ::
 
-    java -Djava.library.path=/usr/local/lib -jar /path/to/crate-mesos.jar --crate-version 0.x.x [OPTIONS]"
+    java -Djava.library.path=/usr/local/lib -jar /path/to/crate-mesos-0.x.x.jar --crate-version 0.x.x [OPTIONS]"
 
 
 Launch via Marathon
@@ -44,7 +44,7 @@ Create a Marathon configuration file::
       "ports": [0],
       "uris": [],
       "env": {},
-      "cmd": "java -Djava.library.path=/usr/local/lib -jar /path/to/crate-mesos.jar --crate-version 0.x.x [OPTIONS]"
+      "cmd": "java -Djava.library.path=/usr/local/lib -jar /path/to/crate-mesos-0.x.x.jar --crate-version 0.x.x [OPTIONS]"
     }
 
 For this to work ``java`` needs to be available on the mesos-slave. If ``java``
@@ -54,7 +54,7 @@ file by listing it in  ``uris`` and by changing the ``cmd``::
     "uris": [
         "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz"
     ],
-    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /path/to/crate-mesos.jar crate-version 0.47.7",
+    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /path/to/crate-mesos-0.x.x.jar crate-version 0.47.7",
 
 
 And submit it to a running Marathon master::
@@ -124,8 +124,50 @@ All options starting with ``-Des.`` are considered crate configuration options.
 For example in order to get the framework to launch instances that will have
 stats-collecting enabled use the following::
 
-    java ... -jar crate-mesos.jar --crate-version 0.x.x -Des.stats.enabled=true
+    java ... -jar crate-mesos-0.x.x.jar --crate-version 0.x.x -Des.stats.enabled=true
 
+
+User/Role
+---------
+
+**The Crate Framework is run as user ``crate`` and role ``*``.
+This is currently not configurable.**
+
+This means, that a user ``crate`` is required to be present on all instances, both
+master and slaves. The user does not need to have any specific permissions. You can
+add a user with the simplest configuration::
+
+    useradd crate -s /bin/bash
+
+Resources
+=========
+
+Data Path
+.........
+
+If you are using `Persistent Data Paths`_ (which is recommended), you need to make sure
+that the user ``crate`` has **write** permissions at these locations.
+For example::
+
+    chown crate:crate /path/to/persistent/disk
+
+Ports
+-----
+
+Crate uses by default a the ports ``4200`` and ``4300``.
+In order to get offers you need to add the resource reservation for a port range that includes
+these ports, e.g. writing it into the resources file::
+
+    echo 'ports(*)[31000-31099, 31101-32000, 4200-4399]' > /etc/mesos-slave/resources
+
+or starting the slave with the option::
+
+    --resources=ports(*)[31000-31099, 31101-32000, 4200-4399]
+
+Then restart the slave and clean the old slave state if necessary (``rm -f /tmp/mesos/meta/slaves/latest``).
+
+The ports can be configured on startup of the Framework, which means that you need adopt
+the resource port range according to your configured ports.
 
 API Usage
 =========
@@ -198,7 +240,7 @@ In order to deploy something on Marathon create a json file. For example
         "cpus": 0.25,
         "mem": 50,
         "ports": [4040],
-        "cmd": "java -Djava.library.path=/usr/local/lib -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-demo --crate-version 0.47.7 --api-port $PORT0",
+        "cmd": "java -Djava.library.path=/usr/local/lib -jar /tmp/crate-mesos-0.1.0.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-demo --crate-version 0.47.7 --api-port $PORT0",
         "healthChecks": [
             {
                 "protocol": "HTTP",
@@ -262,7 +304,7 @@ Assuming there are 4 slaves, 2 with the attribute ``zone:a`` and 2 with the
 attribute ``zone:b``. In this case the framework would have to be launched with
 the following options to have a working multi zone setup::
 
-    java ... -jar crate-mesos.jar --crate-version x.x.x \
+    java ... -jar crate-mesos-0.1.0.jar --crate-version x.x.x \
         -Des.cluster.routing.allocation.awareness.attributes=mesos_zone \
         -Des.cluster.routing.allocation.awareness.force.mesos_zone.values=a,b
 

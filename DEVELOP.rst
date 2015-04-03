@@ -50,12 +50,12 @@ is run, otherwise it will simply boot up the existing VM.
 Once the VM is up and running the crate-mesos-framework can be started `inside` the VM.
 To do so ``vagrant ssh`` can be used::
 
-    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar --crate-version 0.47.7"
+    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.47.7"
 
 .. note::
 
     Inside the VM /vagrant is mapped to the project root. This way the
-    crate-mesos.jar can be accesses from inside the VM.
+    crate-mesos jar file can be accesses from inside the VM.
 
 
 The Mesos WebUI should be available under http://localhost:5050 immediately
@@ -93,7 +93,7 @@ Example
       "ports": [0],
       "uris": [],
       "env": {},
-      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos.jar --crate-version 0.47.7"
+      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-0.1.0.jar --crate-version 0.47.7"
     }
 
 ::

@@ -26,35 +26,32 @@ import org.apache.mesos.Protos;
 public class SaneProtos {
 
     public static Protos.Resource cpus(double value) {
-        return scalarResource("cpus", value, null);
+        return scalarResource("cpus", value);
     }
 
     public static Protos.Resource mem(double value) {
-        return scalarResource("mem", value, null);
+        return scalarResource("mem", value);
     }
 
     public static Protos.TaskID taskID(String taskId) {
         return Protos.TaskID.newBuilder().setValue(taskId).build();
     }
 
-    public static Protos.Resource scalarResource(String name, double value, String role) {
+    public static Protos.Resource scalarResource(String name, double value) {
         Protos.Resource.Builder builder = Protos.Resource.newBuilder()
                 .setName(name)
+                .setRole("*")
                 .setType(Protos.Value.Type.SCALAR)
                 .setScalar(Protos.Value.Scalar.newBuilder().setValue(value).build());
-
-        if (role != null) {
-            builder.setRole(role);
-        }
         return builder.build();
     }
 
 
-    public static Protos.Resource ports(int from, int to, String role) {
+    public static Protos.Resource ports(int from, int to) {
         return Protos.Resource.newBuilder()
                 .setName("ports")
+                .setRole("*")
                 .setType(Protos.Value.Type.RANGES)
-                .setRole(role)
                 .setRanges(Protos.Value.Ranges.newBuilder().addRange(
                         Protos.Value.Range.newBuilder().setBegin(from).setEnd(to).build()))
                 .build();

@@ -32,8 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -120,7 +118,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
-        hostIP = hostIp();
+        hostIP = Main.currentHost();
         CrateState state = stateStore.state();
 
         state.frameworkId(frameworkID.getValue());
@@ -142,7 +140,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framework. Starting task reconciliation.");
-        hostIP = hostIp();
+        hostIP = Main.currentHost();
         CrateState state = stateStore.state();
         crateInstances = state.crateInstances();
         instancesObserver.driver(driver);
@@ -427,18 +425,6 @@ public class CrateScheduler implements Scheduler {
             }
             driver.reconcileTasks(reconcileTasks);
         }
-    }
-
-    private static String hostIp() {
-        String ip = null;
-        try {
-            ip = InetAddress.getLocalHost().getHostAddress();
-        } catch (UnknownHostException e) {
-            LOGGER.warn("Could not obtain host IP", e);
-            ip = "127.0.0.1";
-        }
-        LOGGER.debug("Master IP {}", ip);
-        return ip;
     }
 
 }

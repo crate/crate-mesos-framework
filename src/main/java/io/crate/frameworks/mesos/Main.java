@@ -35,6 +35,9 @@ import org.apache.mesos.state.ZooKeeperState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.UriBuilder;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -115,13 +118,20 @@ public class Main {
         BasicConfigurator.configure();
         Configuration configuration = parseConfiguration(args);
 
-        final double frameworkFailoverTimeout = 60 * 60;
+        final double frameworkFailoverTimeout = 31536000d; // 60 * 60 * 24 * 365 = 1y
 
+        final String webUri = UriBuilder.fromPath("/cluster")
+                .scheme("http")
+                .host(currentHost())
+                .port(configuration.apiPort)
+                .build().toString();
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
-                .setName("CrateFramework")
-                .setUser("")
+                .setName("crate-mesos")
+                .setUser("crate")
+                .setRole("*")
+                .setWebuiUrl(webUri)
                 .setCheckpoint(true) // will be enabled by default in Mesos 0.22
-                .setFailoverTimeout(frameworkFailoverTimeout); // timeout in seconds
+                .setFailoverTimeout(frameworkFailoverTimeout);
 
         PersistentStateStore stateStore = new PersistentStateStore(
                 new ZooKeeperState(configuration.zookeeper, 20_000, TimeUnit.MILLISECONDS,
@@ -158,4 +168,15 @@ public class Main {
         System.exit(status);
     }
 
+    public static String currentHost() {
+        String host = null;
+        try {
+            host = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            LOGGER.warn("Could not obtain host IP", e);
+            host = "127.0.0.1";
+        }
+        LOGGER.debug("IP {}", host);
+        return host;
+    }
 }
