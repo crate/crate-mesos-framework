@@ -21,6 +21,8 @@
 
 package io.crate.frameworks.mesos;
 
+import org.apache.mesos.Protos;
+
 import java.io.Serializable;
 
 public class CrateInstance implements Serializable {
@@ -29,6 +31,8 @@ public class CrateInstance implements Serializable {
     private final String hostname;
     private final String version;
     private final int transportPort;
+    private final String executorID;
+    private final String slaveID;
     private String nodeId;
     private State state;
 
@@ -37,11 +41,14 @@ public class CrateInstance implements Serializable {
         RUNNING
     }
 
-    public CrateInstance(String hostname, String taskId, String version, int transportPort) {
+    public CrateInstance(String hostname, String taskId, String version, int transportPort,
+                         String executorID, String slaveID) {
         this.taskId = taskId;
         this.hostname = hostname;
         this.version = version;
         this.transportPort = transportPort;
+        this.executorID = executorID;
+        this.slaveID = slaveID;
         nodeId = null;
         state = State.PENDING;
     }
@@ -73,6 +80,10 @@ public class CrateInstance implements Serializable {
     public int transportPort() {
         return transportPort;
     }
+
+    public String executorID() { return executorID; }
+
+    public String slaveID() { return slaveID; }
 
     @Override
     public String toString() {

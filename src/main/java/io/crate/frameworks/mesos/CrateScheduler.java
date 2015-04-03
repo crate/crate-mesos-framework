@@ -189,7 +189,9 @@ public class CrateScheduler implements Scheduler {
                             offer.getHostname(),
                             taskId.getValue(),
                             configuration.version,
-                            configuration.transportPort
+                            configuration.transportPort,
+                            taskInfo.getExecutor().getExecutorId().getValue(),
+                            taskInfo.getSlaveId().getValue()
                     ));
                     state.instances(crateInstances);
 
@@ -252,6 +254,9 @@ public class CrateScheduler implements Scheduler {
 
     private void killInstances(SchedulerDriver driver, int toKill) {
         if (toKill == 0) return;
+        if (toKill == crateInstances.size()) {
+            markForceShutdown(driver);
+        }
         int killed = 0;
         // TODO: need to check cluster state to make sure cluster has enough time to re-balance between kills
         LOGGER.debug("Too many instances running. Killing {} tasks", toKill);
@@ -262,6 +267,15 @@ public class CrateScheduler implements Scheduler {
             LOGGER.info("Kill task {}", crateInstance.taskId());
             driver.killTask(taskID(crateInstance.taskId()));
             killed++;
+        }
+    }
+
+    private void markForceShutdown(SchedulerDriver driver) {
+        CrateMessage clusterShutdownMessage = new CrateMessage<>(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN, "FORCE_SHUTDOWN");
+        for (CrateInstance crateInstance : crateInstances) {
+            LOGGER.debug("Force shutdown on executorID: {}, slaveID: {}", crateInstance.executorID(), crateInstance.slaveID());
+            driver.sendFrameworkMessage(Protos.ExecutorID.newBuilder().setValue(crateInstance.executorID()).build(),
+                    Protos.SlaveID.newBuilder().setValue(crateInstance.slaveID()).build(), clusterShutdownMessage.toStream());
         }
     }
 

@@ -43,7 +43,7 @@ public class CrateRestResourceTest {
         configuration.version("0.48.0");
         PersistentStateStore mockedStore = mock(PersistentStateStore.class);
         CrateState state = new CrateState();
-        CrateInstance crate1 = new CrateInstance("crate1", "task-1", "0.48.0", 44300);
+        CrateInstance crate1 = new CrateInstance("crate1", "task-1", "0.48.0", 44300, "exec-1", "slave-1");
         state.crateInstances().addInstance(crate1);
         when(mockedStore.state()).thenReturn(state);
         resource = new CrateRestResource(mockedStore, configuration);
@@ -76,7 +76,23 @@ public class CrateRestResourceTest {
         GenericAPIResponse res = (GenericAPIResponse) resource.clusterResize(new ClusterResizeRequest(2)).getEntity();
         assertEquals("SUCCESS", res.getMessage());
         assertEquals(200, res.getStatus());
-        res = (GenericAPIResponse) resource.clusterResize(new ClusterResizeRequest(0)).getEntity();
+        res = (GenericAPIResponse) resource.clusterResize(new ClusterResizeRequest(1)).getEntity();
+        assertEquals("SUCCESS", res.getMessage());
+        assertEquals(200, res.getStatus());
+    }
+
+    @Test
+    public void testClusterResizeToZeroInstances() throws Exception {
+        GenericAPIResponse res = (GenericAPIResponse) resource.clusterResize(new ClusterResizeRequest(0)).getEntity();
+        assertEquals("Could not change the number of instances. " +
+                "Scaling down to zero instances is not allowed. " +
+                "Please use '/cluster/shutdown' instead.", res.getMessage());
+        assertEquals(403, res.getStatus());
+    }
+
+    @Test
+    public void testClusterShutdown() throws Exception {
+        GenericAPIResponse res = (GenericAPIResponse) resource.clusterShutdown().getEntity();
         assertEquals("SUCCESS", res.getMessage());
         assertEquals(200, res.getStatus());
     }
