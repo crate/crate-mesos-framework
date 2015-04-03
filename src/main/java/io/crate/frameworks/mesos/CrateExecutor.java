@@ -26,6 +26,10 @@ import com.google.protobuf.ByteString;
 import io.crate.action.sql.SQLRequest;
 import io.crate.action.sql.SQLResponse;
 import io.crate.client.CrateClient;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
@@ -42,6 +46,11 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 
 public class CrateExecutor implements Executor {
@@ -51,6 +60,7 @@ public class CrateExecutor implements Executor {
     private File workingDirectory;
     private TaskID currentTaskId = null;
     private ExecutorDriver driver;
+    private ScheduledFuture<?> healthCheck;
     private String nodeId = null; // id of the crate instance
 
     private class StartupInspectionTask implements Runnable {
@@ -141,6 +151,7 @@ public class CrateExecutor implements Executor {
     @Override
     public void killTask(ExecutorDriver driver, TaskID taskId) {
         LOGGER.info("Killing task : " + taskId.getValue());
+        healthCheck.cancel(true);
         if (task.process != null) {
             LOGGER.debug("Found task to kill: " + taskId.getValue());
             int pid = task.pid();
@@ -180,7 +191,7 @@ public class CrateExecutor implements Executor {
 
     @Override
     public void shutdown(ExecutorDriver driver) {
-        LOGGER.warn("Executor driver is shuttin down ...");
+        LOGGER.warn("Executor driver is shutting down ...");
     }
 
     @Override
@@ -355,7 +366,45 @@ public class CrateExecutor implements Executor {
                     new String[]{},
                     workingDirectory
             );
+            healthCheck = scheduleHealthCheck(driver, "localhost", task.executableInfo.httpPort());
             return process;
+        }
+
+        public ScheduledFuture<?> scheduleHealthCheck(final ExecutorDriver driver, final String host, final Integer port) {
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+            final Runnable checker = new Runnable() {
+
+                HttpClient client = HttpClientBuilder.create().build();
+                HttpGet request = new HttpGet("http://" + host + ":" + port);
+
+                public void run() {
+                    performHealthCheck(host, port, driver, client, request);
+                }
+            };
+            return scheduler.scheduleWithFixedDelay(checker, 30, 30, SECONDS);
+        }
+
+        public void performHealthCheck(String uri, Integer port, ExecutorDriver driver,
+                                       final HttpClient client, final HttpGet request) {
+            try {
+                HttpResponse response = client.execute(request);
+                int statusCode = response.getStatusLine().getStatusCode();
+                if(!(statusCode >= 200 || statusCode < 300)) {
+                    LOGGER.error("Health check failed. Stopping driver.");
+                    gracefulStop();
+                } else {
+                    LOGGER.info("Health check - OK.");
+                }
+            } catch (IOException e) {
+                try {
+                    process.exitValue();
+                } catch (IllegalThreadStateException itse) {
+                    return;
+                }
+                LOGGER.error("Couldn't reach " + uri + ":" + port);
+                fail(driver);
+            }
         }
 
         public int pid() {
