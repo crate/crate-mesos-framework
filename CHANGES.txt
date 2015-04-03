@@ -1,0 +1,9 @@
+=================================
+CHANGES for Crate Mesos Framework
+=================================
+
+Unreleased
+==========
+
+  - initial framework implementation
+    see README.rst for usage and limitations
