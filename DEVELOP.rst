@@ -132,6 +132,35 @@ and then to delete all crate-mesos state run::
     rmr /crate-mesos
 
 
+Preparing a new Release
+=======================
+
+Before creating a new distribution, a new version and tag should be created:
+
+ - Update the CURRENT version in ``io.crate.frameworks.mesos.Version``.
+
+ - Add a note for the new version at the ``CHANGES.txt`` file.
+
+ - Commit e.g. using message ``'prepare release x.x.x'``.
+
+ - Push to origin
+
+ - Create a tag using the ``create_tag.sh`` script
+   (run ``./devtools/create_tag.sh``).
+
+Now everything is ready for building a new distribution, either
+manually or let Jenkins do the job as usual :-)
+
+Building a release tarball is done via the ``release`` task. This task
+actually only runs the ``fatJar`` task but additionally checks that
+the output of ``git describe --tag`` matches the current version of
+Crate Mesos Framework::
+
+    ./gradlew release
+
+The resulting ``jar`` file will reside in the folder ``build/libs/``.
+
+
 .. _Java: http://www.java.com/
 
 .. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
@@ -143,3 +172,4 @@ and then to delete all crate-mesos state run::
 .. _Marathon: https://mesosphere.github.io/marathon/
 
 .. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
+
