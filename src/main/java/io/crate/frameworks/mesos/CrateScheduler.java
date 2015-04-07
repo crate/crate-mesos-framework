@@ -22,6 +22,7 @@
 package io.crate.frameworks.mesos;
 
 import com.google.protobuf.ByteString;
+import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
 import org.apache.mesos.Protos;
@@ -31,6 +32,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -42,6 +44,7 @@ import static io.crate.frameworks.mesos.SaneProtos.taskID;
 
 public class CrateScheduler implements Scheduler {
 
+    private static final String JAR_NAME = new File(CrateHttpService.jarLocation().getFile()).getName();
     private final ScheduledThreadPoolExecutor threadPoolExecutor = new ScheduledThreadPoolExecutor(32);
     private final HashMap<String, RetryTask> retryTasks = new HashMap<>();
     private String hostIP;
@@ -207,11 +210,10 @@ public class CrateScheduler implements Scheduler {
 
     @NotNull
     private Protos.ExecutorInfo createExecutor() {
-        final String jar = String.format("crate-mesos-%s.jar", Version.CURRENT);
-        String path = String.format("http://%s:%d/static/%s", hostIP, configuration.apiPort, jar);
+        String path = String.format("http://%s:%d/static/%s", hostIP, configuration.apiPort, JAR_NAME);
         Protos.CommandInfo cmd = Protos.CommandInfo.newBuilder()
                 .addUris(Protos.CommandInfo.URI.newBuilder().setValue(path).setExtract(false).build())
-                .setValue(String.format("java -cp %s io.crate.frameworks.mesos.CrateExecutor", jar))
+                .setValue(String.format("java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME))
                 .build();
 
         return Protos.ExecutorInfo.newBuilder()
