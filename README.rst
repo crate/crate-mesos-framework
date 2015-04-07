@@ -191,11 +191,11 @@ Resizing a Cluster
 ==================
 
 
-A Crate cluster can be resized by changing the number of instances using the Framework API (see API Usage above).
+A Crate cluster can be resized by changing the number of instances using the Framework API (see `API Usage`_).
 
 Increasing the number of instances is always possible, unless the number of desired instances is
-greater than the number of slaves. The framework enforces the contraint that there is only
-one Crate instance per framework running on each host.
+greater than the number of slaves. Each instance of the Crate Framework enforces the contraint
+that there is only one Crate instance prunning on each host.
 
 The Crate Framework shuts down Crate instances gracefully (see `Configuration`_ and `Zero Downtime Upgrade`_)
 when decreasing the number of instances in a cluster.
@@ -206,7 +206,80 @@ This option will cause the Crate node to try move all shards off the node before
 the node will **not** shut down and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate Framework
 will continue to try to shut down the node again. Such a state is indicated by the Framework API when the number of running
 instances does not approach the number of desired instances when scaling down. Please keep in mind that the cluster can not
- be resized to zero instances. In order to forcefully shut down the cluster Framework API ``/cluster/shutdown`` endpoint can be used.
+be resized to zero instances.
+
+In order to shut down the a cluster you need to use the ``/cluster/shutdown`` API endpoint.
+
+Cluster Upgrade
+===============
+
+A zero downtime upgrade of a Crate cluster running on Mesos is currently not
+possible, however it is still possible to upgrade the cluster with downtime.
+
+.. warning::
+
+    A cluster upgrade/shutdown requires that the ``--crate-data-path`` was set
+    so data is stored persistently outside of the sandboxed executor path.
+    **Otherwise data will be lost definitely!**
+
+An upgrade requires a few steps:
+
+1. Set graceful stop options
+----------------------------
+
+Assuming you've started the Crate Framework with version 0.47.7 and want to
+upgrade to version 0.47.8 (or any other greater version), you will first need
+to set the minimum availability to ``full`` (see `Resizing a Cluster`_) if
+not already done. Also check to other options for graceful shutdown.
+
+This will ensure that you are able to resize your cluster to the minimum amount
+of nodes.
+
+2. Resize to minimum required nodes
+-----------------------------------
+
+The minimum amount of nodes is equal the highest number of replicas of a table
+plus 1::
+
+    min_nodes = max_replicas + 1
+
+E.g. if your cluster has 5 nodes and your table with the most configured replicas
+has 2 replicas, you can resize your cluster down to 3 nodes.
+
+It is highly recommended to shut down Crate nodes one by one! In this way you are
+in better control if a node does not shut down gracefully, e.g. runs into the
+timeout.
+
+3. Restart framework with new Crate version number
+--------------------------------------------------
+
+Now you can re-start the Crate Framework with the new Crate version number.
+The Crate instances with the old version are still running at this point.
+If you'd upscale your cluster, new Crate instances would still use the old version,
+but that is not what we want.
+
+4. Shut down remaining instances and scale up again
+---------------------------------------------------
+
+In order to be able to use the new version set with the restarted framework, you
+need to kill the remaining instances using the ``/cluster/shutdown`` API endpoint.
+
+Once there are no more instances, you can resize the cluster and new Crate instances
+will use the new version from the framework.
+
+Because the framework stores the information on which slaves Crate instances with data
+were running and when you up-scale the cluster again, it will prefer offers from these
+slaves.
+
+.. note::
+
+    Please also read the instructions how to perform a `Zero Downtime Upgrade`_!
+
+.. note::
+
+    You can omit step 2, however recovery is faster if there are less instances
+    and it is less likely that other frameworks 'capture' resources on slaves
+    making it impossible to spawn Crate instances on these slaves again.
 
 
 Service Discovery for Applications using DNS
@@ -285,14 +358,6 @@ deployed using Marathon. Keep in mind that each cluster should have its unique
 ports so the port configuration options should be set in each clusters ``cmd``
 definition.
 
-.. warning::
-
-    Current limitations:
-
-    - As there is no official crate-mesos release yet the jar file isn't hosted
-      but needs to be built locally and somehow copied to the slaves.
-
-
 
 Mesos Slave Attributes and Crate Node Tags
 ==========================================
@@ -317,6 +382,8 @@ the following options to have a working multi zone setup::
 Limitations
 ===========
 
+* As there is no official crate-mesos release yet the jar file isn't hosted
+  but needs to be built locally and somehow copied to the slaves.
 * There is no automatic handling of cluster failures.
 * The overall cluster health needs to be monitored separately,
   using the Crate Admin UI (running on port ``4200`` at path ``/admin``)
@@ -340,5 +407,5 @@ To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/
 .. _Multi Zone Crate Cluster: https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
 .. _Configuration: https://crate.io/docs/en/stable/configuration.html#graceful-stop
-.. _Zero Downtime Upgrade: https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html#step-2-graceful-stop
+.. _Zero Downtime Upgrade: https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html
 
