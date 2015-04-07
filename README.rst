@@ -184,7 +184,7 @@ You can resize the cluster by setting the number of desired instances::
 
 You can force shut down the cluster::
 
-    curl -X GET http://localhost:4040/cluster/shutdown
+    curl -X POST http://localhost:4040/cluster/shutdown
 
 
 Resizing a Cluster

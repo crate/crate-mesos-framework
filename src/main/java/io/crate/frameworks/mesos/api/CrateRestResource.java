@@ -166,7 +166,7 @@ public class CrateRestResource {
         return Response.ok(new GenericAPIResponse() {}).build();
     }
 
-    @GET
+    @POST
     @Path("/cluster/shutdown")
     public Response clusterShutdown() {
         store.state().desiredInstances(0);
