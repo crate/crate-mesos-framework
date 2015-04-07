@@ -72,7 +72,7 @@ public class CrateSchedulerTest {
     @Test
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.0", 4300));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.0", 4300, "exec-1", "slave-1"));
         state.desiredInstances(0);
         state.instances(instances);
 
@@ -113,7 +113,7 @@ public class CrateSchedulerTest {
     public void testReconcileTasksWithDifferentVersionAlreadyRunning() throws Exception {
         // configured version should be changed to the version of the running instance
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.7", 4300));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.7", 4300, "exec-1", "slave-1"));
         state.instances(instances);
 
         Configuration configuration = new Configuration();

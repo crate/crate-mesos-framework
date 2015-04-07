@@ -31,7 +31,7 @@ import static org.junit.Assert.*;
 public class CrateInstancesTest {
 
     private static CrateInstance newInstance(String hostname, String taskId) {
-        return new CrateInstance(hostname, taskId, "0.47.0", 4300);
+        return new CrateInstance(hostname, taskId, "0.47.0", 4300, "exec-1", "slave-1");
     }
 
     @Test

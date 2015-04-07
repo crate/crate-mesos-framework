@@ -118,6 +118,18 @@ public class CrateRestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response clusterResize(final ClusterResizeRequest data) {
         int desired = data.getInstances();
+        if(desired == 0) {
+            return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
+                @Override
+                public int getStatus() {
+                    return Response.Status.FORBIDDEN.getStatusCode();
+                }
+                @Override
+                public Object getMessage() {
+                    return "Could not change the number of instances. Scaling down to zero instances is not allowed. Please use '/cluster/shutdown' instead.";
+                }
+            }).build();
+        }
         CrateClient client = client();
         if (desired < store.state().crateInstances().size() && client != null) {
             int maxReplicas = 0;
@@ -151,6 +163,13 @@ public class CrateRestResource {
             }
         }
         store.state().desiredInstances(desired);
+        return Response.ok(new GenericAPIResponse() {}).build();
+    }
+
+    @GET
+    @Path("/cluster/shutdown")
+    public Response clusterShutdown() {
+        store.state().desiredInstances(0);
         return Response.ok(new GenericAPIResponse() {}).build();
     }
 

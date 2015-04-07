@@ -34,6 +34,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
+import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,6 +64,7 @@ public class CrateExecutor implements Executor {
     private ExecutorDriver driver;
     private ScheduledFuture<?> healthCheck;
     private String nodeId = null; // id of the crate instance
+    private Boolean forceShutdown = false;
 
     private class StartupInspectionTask implements Runnable {
 
@@ -152,6 +155,10 @@ public class CrateExecutor implements Executor {
     public void killTask(ExecutorDriver driver, TaskID taskId) {
         LOGGER.info("Killing task : " + taskId.getValue());
         healthCheck.cancel(true);
+        if(forceShutdown){
+            forceShutdown(driver);
+            return;
+        }
         if (task.process != null) {
             LOGGER.debug("Found task to kill: " + taskId.getValue());
             int pid = task.pid();
@@ -184,9 +191,28 @@ public class CrateExecutor implements Executor {
         }
     }
 
+    private void forceShutdown(ExecutorDriver driver) {
+        task.process.destroy();
+        driver.sendStatusUpdate(TaskStatus.newBuilder()
+                .setTaskId(currentTaskId)
+                .setState(TaskState.TASK_KILLED)
+                .build());
+        driver.stop();
+    }
+
 
     @Override
     public void frameworkMessage(ExecutorDriver driver, byte[] data) {
+        try {
+            CrateMessage crateMessage = CrateMessage.fromStream(data);
+            if (crateMessage != null) {
+                if(crateMessage.type().equals(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN)) {
+                    forceShutdown = true;
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.error("Could not process message", e);
+        }
     }
 
     @Override
@@ -441,7 +467,7 @@ public class CrateExecutor implements Executor {
                 GracefulShutdownWorker worker = new GracefulShutdownWorker(process);
                 Thread shutdown = new Thread(worker);
                 shutdown.start();
-                LOGGER.debug("Sending -USR2 signale to PID {}", pid);
+                LOGGER.debug("Sending -USR2 signal to PID {}", pid);
                 Runtime.getRuntime().exec(new String[]{"kill", "-USR2", Integer.toString(pid)});
                 // todo: set timeout correctly
                 shutdown.join(7_200_000L); // 60 * 60 * 2 * 1000;

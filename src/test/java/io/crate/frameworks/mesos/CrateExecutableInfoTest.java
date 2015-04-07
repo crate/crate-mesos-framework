@@ -41,7 +41,7 @@ public class CrateExecutableInfoTest {
         configuration.dataPath = "/mnt/ssd1/crate";
         configuration.blobPath= "/mnt/data1/crate";
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("host1", "1", "0.48.0", 4300));
+        instances.addInstance(new CrateInstance("host1", "1", "0.48.0", 4300, "exec-1", "slave-1"));
         List<Protos.Attribute> attr = ImmutableList.of(
                 Protos.Attribute.newBuilder()
                         .setType(Protos.Value.Type.TEXT)
@@ -69,7 +69,7 @@ public class CrateExecutableInfoTest {
         configuration.transportPort = 4250;
 
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("runningHost", "1", "0.47.7", 4350));
+        instances.addInstance(new CrateInstance("runningHost", "1", "0.47.7", 4350, "exec-1", "slave-1"));
         CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
                 ImmutableList.<Protos.Attribute>of());
         List<String> args = host1.arguments();

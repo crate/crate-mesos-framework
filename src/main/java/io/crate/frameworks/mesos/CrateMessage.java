@@ -47,9 +47,11 @@ public final class CrateMessage<T extends Serializable> implements Serializable 
     }
 
     public enum Type {
-        MESSAGE_MISSING_RESOURCE
+        MESSAGE_MISSING_RESOURCE,
+        MESSAGE_CLUSTER_SHUTDOWN
     }
 
+    @SuppressWarnings("unchecked")
     public static <E extends Serializable> CrateMessage<E> fromStream(byte[] value) throws IOException {
         if (value.length == 0) {
             return null;
