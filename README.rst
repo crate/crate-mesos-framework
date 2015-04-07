@@ -182,12 +182,16 @@ You can resize the cluster by setting the number of desired instances::
 
     curl -X POST -H "Content-Type: application/json" localhost:4040/cluster/resize -d '{"instances": 5}'
 
+You can force shut down the cluster::
+
+    curl -X GET http://localhost:4040/cluster/shutdown
+
 
 Resizing a Cluster
 ==================
 
 
-A Crate cluster can be resized by changing the number of instances using the Framwork API (see API Usage above).
+A Crate cluster can be resized by changing the number of instances using the Framework API (see API Usage above).
 
 Increasing the number of instances is always possible, unless the number of desired instances is
 greater than the number of slaves. The framework enforces the contraint that there is only
@@ -198,10 +202,11 @@ when decreasing the number of instances in a cluster.
 
 If you want to ensure green health (full data + replica availability), you need to change the
 ``cluster.graceful_stop.min_availability`` setting to ``full``.
-This option will cause the Crate node to try move all shards off the node before shutting down. It this is not possible,
+This option will cause the Crate node to try move all shards off the node before shutting down. If this is not possible,
 the node will **not** shut down and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate Framework
-will continue to try to shut down the node again. Such a state is indicated by the Framwork API when the number of running
-instances does not approach the number of desired instances when scaling down.
+will continue to try to shut down the node again. Such a state is indicated by the Framework API when the number of running
+instances does not approach the number of desired instances when scaling down. Please keep in mind that the cluster can not
+ be resized to zero instances. In order to forcefully shut down the cluster Framework API ``/cluster/shutdown`` endpoint can be used.
 
 
 Service Discovery for Applications using DNS
