@@ -22,7 +22,6 @@
 package io.crate.frameworks.mesos;
 
 import com.google.common.base.Optional;
-import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,7 @@ public class CrateState implements Serializable {
     private String frameworkId = null;
     private CrateInstances crateInstances = new CrateInstances();
     private HashMap<String, List<String>> excludedSlaves = new HashMap<>();
+    private Set<String> slavesWithInstance = new HashSet<>();
 
     private static final long serialVersionUID = 1L;
 
@@ -130,6 +130,10 @@ public class CrateState implements Serializable {
         }
         return allIds;
 
+    }
+
+    public Set<String> slavesWithInstances() {
+        return slavesWithInstance;
     }
 
     public HashMap<String, List<String>> excludedSlaves () {
