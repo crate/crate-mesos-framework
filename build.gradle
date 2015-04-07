@@ -35,17 +35,24 @@ task getVersion (dependsOn: 'classes') << {
     
     ext.gitTag = "git describe".execute().in.text.trim()
     ext.version = stdout.toString().trim().split(" ")[1].replace(',','').trim()
-    project.version = version
 
+    if (gradle.taskGraph.hasTask(release)) {
+        assert gitTag == version, "Version conflict: git tag: '" + gitTag + "' does not match release version: '" + version + "'"
+    } else if (gradle.taskGraph.hasTask(snapshotRelease)) {
+	assert version.endsWith("-SNAPSHOT"), "Version conflict: version does not end with -SNAPSHOT"
+	version = version + "-" + "git rev-parse --short HEAD".execute().in.text.trim()
+    }
+    
     logger.quiet("----------------------------")
     logger.quiet(" gitTag:  " + gitTag)
     logger.quiet(" version: " + version)
     logger.quiet("----------------------------")
-    
-    if (gradle.taskGraph.hasTask(release)) {
-        assert gitTag == version, "Version conflict: git tag: '" + gitTag + "' does not match release version: '" + version + "'"
-    }
 
+    project.version = version
+}
+
+task snapshotRelease(dependsOn: 'fatJar') << {
+    logger.quiet("Snapshot Release: " + project.name + " (" + getVersion.version + ")");
 }
 
 task release(dependsOn: 'fatJar') << {

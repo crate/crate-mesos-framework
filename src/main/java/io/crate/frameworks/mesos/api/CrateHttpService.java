@@ -56,11 +56,14 @@ public class CrateHttpService {
         );
     }
 
+    public static URL jarLocation() {
+        return io.crate.frameworks.mesos.Main.class.getProtectionDomain().getCodeSource().getLocation();
+    }
+
     private static String getRoot() {
-        URL url = io.crate.frameworks.mesos.Main.class.getProtectionDomain().getCodeSource().getLocation();
         String jarPath = null;
         try {
-            jarPath = URLDecoder.decode(url.getFile(), "UTF-8");
+            jarPath = URLDecoder.decode(jarLocation().getFile(), "UTF-8");
         } catch (UnsupportedEncodingException e) {
             LOGGER.error("Could not read root directory path for jar file.", e);
             System.exit(2);
