@@ -17,7 +17,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.provision "shell", path: "vagrant/vagrant_up.sh"
 
     config.vm.provider "virtualbox" do |v|
-        v.memory = 2560
+        v.memory = 3072
         v.cpus = 2
     end
 end
