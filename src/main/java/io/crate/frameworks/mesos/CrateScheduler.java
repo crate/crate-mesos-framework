@@ -169,11 +169,10 @@ public class CrateScheduler implements Scheduler {
         } else {
             int launched = 0;
             for (Protos.Offer offer : offers) {
-                if (launched == required) {
+                if (launched == required || !slaveWithRunningInstance(offer.getSlaveId().getValue())) {
                     driver.declineOffer(offer.getId());
                     continue;
                 }
-
                 CrateExecutableInfo crateInfo = obtainExecInfo(offer, offer.getAttributesList());
                 if (crateInfo == null) {
                     driver.declineOffer(offer.getId());
@@ -202,10 +201,16 @@ public class CrateScheduler implements Scheduler {
                     driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(taskInfo), filters);
                     launched++;
                 }
+                stateStore.state().slavesWithInstances().remove(offer.getSlaveId().getValue());
             }
             stateStore.save();
         }
 
+    }
+
+    private boolean slaveWithRunningInstance(String slaveId) {
+            return (stateStore.state().slavesWithInstances().isEmpty() ||
+                    stateStore.state().slavesWithInstances().contains(slaveId));
     }
 
     @NotNull
@@ -276,6 +281,7 @@ public class CrateScheduler implements Scheduler {
         CrateMessage clusterShutdownMessage = new CrateMessage<>(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN, "FORCE_SHUTDOWN");
         for (CrateInstance crateInstance : crateInstances) {
             LOGGER.debug("Force shutdown on executorID: {}, slaveID: {}", crateInstance.executorID(), crateInstance.slaveID());
+            stateStore.state().slavesWithInstances().add(crateInstance.slaveID());
             driver.sendFrameworkMessage(Protos.ExecutorID.newBuilder().setValue(crateInstance.executorID()).build(),
                     Protos.SlaveID.newBuilder().setValue(crateInstance.slaveID()).build(), clusterShutdownMessage.toStream());
         }
