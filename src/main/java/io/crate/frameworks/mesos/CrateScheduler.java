@@ -123,7 +123,7 @@ public class CrateScheduler implements Scheduler {
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
         hostIP = Main.currentHost();
         CrateState state = stateStore.state();
-
+        assert stateStore.state() != null : "State must not be null";
         state.frameworkId(frameworkID.getValue());
         stateStore.save();
         crateInstances = state.crateInstances();
@@ -145,6 +145,7 @@ public class CrateScheduler implements Scheduler {
         LOGGER.info("Reregistered framework. Starting task reconciliation.");
         hostIP = Main.currentHost();
         CrateState state = stateStore.state();
+        assert stateStore.state() != null : "State must not be null";
         crateInstances = state.crateInstances();
         instancesObserver.driver(driver);
         state.desiredInstances().clearObservers();
@@ -209,8 +210,9 @@ public class CrateScheduler implements Scheduler {
     }
 
     private boolean slaveWithRunningInstance(String slaveId) {
-            return (stateStore.state().slavesWithInstances().isEmpty() ||
+        return (stateStore.state().slavesWithInstances().isEmpty() ||
                     stateStore.state().slavesWithInstances().contains(slaveId));
+
     }
 
     @NotNull
