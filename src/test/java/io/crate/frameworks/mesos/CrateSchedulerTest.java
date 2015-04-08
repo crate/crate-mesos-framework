@@ -111,22 +111,59 @@ public class CrateSchedulerTest {
 
     @Test
     public void testReconcileTasksWithDifferentVersionAlreadyRunning() throws Exception {
+        Protos.TaskID task = taskID("1");
         // configured version should be changed to the version of the running instance
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.7", 4300, "exec-1", "slave-1"));
+        instances.addInstance(new CrateInstance("host1", task.getValue(), "0.47.7", 4300, "exec1", "slave1"));
         state.instances(instances);
+        state.desiredInstances(5);
 
         Configuration configuration = new Configuration();
         configuration.version("0.48.0");
 
-        CrateScheduler crateScheduler = initScheduler(configuration, "xx");
+        Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
+        CrateScheduler crateScheduler = initScheduler(configuration, frameworkID);
         crateScheduler.reconcileTasks(driver);
         crateScheduler.statusUpdate(driver,
                 Protos.TaskStatus.newBuilder()
-                        .setTaskId(taskID("1"))
+                        .setTaskId(task)
                         .setState(Protos.TaskState.TASK_RUNNING).build());
 
-        assertThat(configuration.version, is("0.47.7"));
+        // configuration holds the new version
+        assertThat(configuration.version, is("0.48.0"));
+
+        List<Protos.Offer> offers = new ArrayList<>();
+        for (int i = 2; i < 4; i++) {
+            String idx = Integer.toString(i);
+            offers.add(Protos.Offer.newBuilder()
+                    .setId(Protos.OfferID.newBuilder().setValue(idx))
+                    .setHostname("host"+idx)
+                    .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"+idx))
+                    .setFrameworkId(frameworkID)
+                    .addAllResources(configuration.getAllRequiredResources()).build());
+        }
+
+        crateScheduler.resourceOffers(driver, offers);
+
+        // new instance has still version from existing cluster
+        assertThat(state.crateInstances().get(0).version(), is("0.47.7"));
+        assertThat(state.crateInstances().get(1).version(), is("0.47.7"));
+
+        // only after shutting down all instances the new version from the configuration is used
+        ArrayList<String> taskIds = new ArrayList<>(state.crateInstances().size());
+        for (CrateInstance instance : state.crateInstances()) {
+            taskIds.add(instance.taskId());
+        }
+        for (String taskId : taskIds) {
+            crateScheduler.statusUpdate(driver,
+                    Protos.TaskStatus.newBuilder()
+                            .setTaskId(taskID(taskId))
+                            .setState(Protos.TaskState.TASK_KILLED).build());
+        }
+
+        crateScheduler.resourceOffers(driver, offers);
+        assertThat(state.crateInstances().get(0).version(), is("0.48.0"));
+        assertThat(state.crateInstances().get(1).version(), is("0.48.0"));
     }
 
     private CrateScheduler initScheduler(Configuration configuration, String frameworkID) {
