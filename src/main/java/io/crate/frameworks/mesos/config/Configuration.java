@@ -35,6 +35,12 @@ import java.util.regex.Pattern;
 
 public class Configuration implements Serializable{
 
+    @Parameter(names = { "--framework-user" })
+    public String user = "crate";
+
+    @Parameter(names = { "--framework-role" })
+    public String role = "*";
+
     @Parameter(names = { "--mesos-master" })
     private String mesosMaster = null;
 

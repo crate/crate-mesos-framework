@@ -96,6 +96,10 @@ OPTION                       REQUIRED       DEFAULT
 ``--resource-heap``         false          256
 --------------------------- -------------- -----------------------
 ``--resource-disk``         false          1024
+--------------------------- -------------- -----------------------
+``--framework-user``        false          crate
+--------------------------- -------------- -----------------------
+``--framework-role``        false          *
 =========================== ============== =======================
 
 
@@ -130,14 +134,19 @@ stats-collecting enabled use the following::
 User/Role
 ---------
 
-**The Crate Framework is run as user ``crate`` and role ``*``.
-This is currently not configurable.**
+**The Crate Framework is run as user ``crate`` and role ``*`` by default.
+However, this is configurable using ``--framework-user`` and ``--framework-role``.**
 
-This means, that a user ``crate`` is required to be present on all instances, both
+This means, that a user ``crate`` (or other specified user) is required to be present on all instances, both
 master and slaves. The user does not need to have any specific permissions. You can
 add a user with the simplest configuration::
 
     useradd crate -s /bin/bash
+
+If you specify a role different to the default ``"*"`` you need to add it the mesos-master
+configuration, e.g.::
+
+    echo "crate" > /etc/mesos-master/roles
 
 Resources
 =========

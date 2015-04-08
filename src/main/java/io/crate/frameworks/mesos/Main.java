@@ -127,8 +127,8 @@ public class Main {
                 .build().toString();
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
                 .setName("crate-mesos")
-                .setUser("crate")
-                .setRole("*")
+                .setUser(configuration.user)
+                .setRole(configuration.role)
                 .setWebuiUrl(webUri)
                 .setCheckpoint(true) // will be enabled by default in Mesos 0.22
                 .setFailoverTimeout(frameworkFailoverTimeout);
