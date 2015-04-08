@@ -95,6 +95,10 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
         return instances.iterator();
     }
 
+    public CrateInstance get(int index) {
+        return instances.get(index);
+    }
+
     public CrateInstance byTaskId(final String taskId) {
         return Iterables.find(this, new Predicate<CrateInstance>() {
             @Override

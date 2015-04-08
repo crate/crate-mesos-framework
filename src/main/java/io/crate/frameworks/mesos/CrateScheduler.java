@@ -187,10 +187,11 @@ public class CrateScheduler implements Scheduler {
                             .addAllResources(configuration.getAllRequiredResources())
                             .build();
 
+                    final String version = crateInstances.size() > 0 ? crateInstances.get(0).version() : configuration.version;
                     crateInstances.addInstance(new CrateInstance(
                             offer.getHostname(),
                             taskId.getValue(),
-                            configuration.version,
+                            version,
                             configuration.transportPort,
                             taskInfo.getExecutor().getExecutorId().getValue(),
                             taskInfo.getSlaveId().getValue()
@@ -310,8 +311,8 @@ public class CrateScheduler implements Scheduler {
                         if (instance == null) {
                             LOGGER.error("Got a task for an instance that isn't tracked. HELP :(");
                         } else if (!instance.version().equals(configuration.version)) {
-                            LOGGER.info("Running instance has version {}, Configured is {}.", instance.version(), configuration.version);
-                            configuration.version(instance.version());
+                            LOGGER.warn("Running instance has version {}, Configured is {}. " +
+                                    "If you are not upgrading your cluster, make sure you configured your framework correctly!", instance.version(), configuration.version);
                         }
                     }
                 }
