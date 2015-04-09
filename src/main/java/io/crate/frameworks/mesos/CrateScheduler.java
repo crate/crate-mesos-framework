@@ -21,10 +21,12 @@
 
 package io.crate.frameworks.mesos;
 
+import com.google.common.base.Splitter;
 import com.google.protobuf.ByteString;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
+import org.apache.mesos.MesosNativeLibrary;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -120,6 +122,16 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
+        String[] version = MesosNativeLibrary.VERSION.split("\\.", -1);
+        int major = Integer.valueOf(version[0]);
+        int minor = Integer.valueOf(version[1]);
+        if (major == 0 && minor < 21) {
+            // There is already a JIRA ticket for proper version validation.
+            // todo: improve version validation once available
+            LOGGER.error("Crate Framework requires MesosNativeLibrary >= 0.21.0, version is {}. Shutting down driver!",
+                    MesosNativeLibrary.VERSION);
+            driver.stop();
+        }
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
         hostIP = Main.currentHost();
         CrateState state = stateStore.state();
