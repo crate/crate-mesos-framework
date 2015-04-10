@@ -1,3 +1,2 @@
 #!/bin/bash
-rm build/libs/crate-mesos-*.jar
-./gradlew snapshotRelease && vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $*"
+./gradlew clean && ./gradlew snapshotRelease && vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $*"

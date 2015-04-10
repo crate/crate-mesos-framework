@@ -28,13 +28,13 @@ import io.crate.action.sql.SQLResponse;
 import io.crate.client.CrateClient;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
-import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -46,7 +46,6 @@ import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -65,6 +64,7 @@ public class CrateExecutor implements Executor {
     private ScheduledFuture<?> healthCheck;
     private String nodeId = null; // id of the crate instance
     private Boolean forceShutdown = false;
+    private final ScheduledExecutorService healthCheckScheduler = Executors.newScheduledThreadPool(1);
 
     private class StartupInspectionTask implements Runnable {
 
@@ -156,7 +156,7 @@ public class CrateExecutor implements Executor {
         LOGGER.info("Killing task : " + taskId.getValue());
         healthCheck.cancel(true);
         if(forceShutdown){
-            forceShutdown(driver);
+            forceShutdownCrate(driver);
             return;
         }
         if (task.process != null) {
@@ -168,19 +168,7 @@ public class CrateExecutor implements Executor {
                 task.process = null;
                 return;
             }
-            boolean success = task.gracefulStop();
-            if (success) {
-                driver.sendStatusUpdate(TaskStatus.newBuilder()
-                        .setTaskId(taskId)
-                        .setState(TaskState.TASK_KILLED)
-                        .build());
-                driver.stop();
-            } else {
-                driver.sendStatusUpdate(TaskStatus.newBuilder()
-                        .setTaskId(taskId)
-                        .setState(TaskState.TASK_RUNNING)
-                        .build());
-            }
+            gracefulShutdownCrate(driver);
         } else  {
             LOGGER.error("No running task found. Stopping executor.");
             driver.sendStatusUpdate(TaskStatus.newBuilder()
@@ -191,13 +179,37 @@ public class CrateExecutor implements Executor {
         }
     }
 
-    private void forceShutdown(ExecutorDriver driver) {
+    private void gracefulShutdownCrate(ExecutorDriver driver) {
+        boolean success = task.gracefulStop();
+        if (success) {
+            driver.sendStatusUpdate(TaskStatus.newBuilder()
+                    .setTaskId(currentTaskId)
+                    .setState(TaskState.TASK_KILLED)
+                    .build());
+            driver.stop();
+        } else {
+            driver.sendStatusUpdate(TaskStatus.newBuilder()
+                    .setTaskId(currentTaskId)
+                    .setState(TaskState.TASK_RUNNING)
+                    .build());
+        }
+    }
+
+    private void forceShutdownCrate(ExecutorDriver driver) {
         task.process.destroy();
         driver.sendStatusUpdate(TaskStatus.newBuilder()
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_KILLED)
                 .build());
         driver.stop();
+    }
+
+
+    private void restartCrate(ExecutorDriver driver) {
+        LOGGER.debug("Restart Crate process.");
+        task.process.destroy();
+        task.process = null;
+        startProcess(driver, task);
     }
 
 
@@ -330,6 +342,8 @@ public class CrateExecutor implements Executor {
     }
 
     private void fail(ExecutorDriver driver) {
+        cancelHealthCheckIfExists();
+        healthCheckScheduler.shutdown();
         driver.sendStatusUpdate(TaskStatus.newBuilder()
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_FAILED)
@@ -349,12 +363,59 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_RUNNING);
         if (response != null) {
-            LOGGER.debug("SQLResponse: rows = {}", response.rows());
             nodeId = (String) response.rows()[0][0];
             LOGGER.info("NODE ID = {}", nodeId);
             status.setData(ByteString.copyFromUtf8(nodeId));
         }
         driver.sendStatusUpdate(status.build());
+        cancelHealthCheckIfExists();
+        healthCheck = scheduleHealthCheck(driver, "localhost", task.executableInfo.httpPort());
+    }
+
+    private void cancelHealthCheckIfExists() {
+        if (healthCheck != null && (!healthCheck.isCancelled() || !healthCheck.isDone())) {
+            healthCheck.cancel(false);
+        }
+    }
+
+    public ScheduledFuture<?> scheduleHealthCheck(final ExecutorDriver driver, final String host, final Integer port) {
+        final Runnable checker = new Runnable() {
+            public void run() {
+                HttpClient client = HttpClientBuilder.create()
+                        .setDefaultRequestConfig(
+                                RequestConfig.custom()
+                                        .setConnectTimeout(5000) // 5s timeout
+                                        .build()
+                        ).build();
+                HttpGet request = new HttpGet("http://" + host + ":" + port);
+                try {
+                    HttpResponse response = client.execute(request);
+                    int statusCode = response.getStatusLine().getStatusCode();
+                    if(!(statusCode >= 200 || statusCode < 300)) {
+                        LOGGER.error("Health check failed: Crate returned status {}. Waiting ...", statusCode);
+                    } else {
+                        LOGGER.info("Health check: OK ({})", statusCode);
+                    }
+                } catch (IOException e) {
+                    LOGGER.error("Failed to perform health check:", e);
+                    int exitCode = -1;
+                    try {
+                        LOGGER.debug("Check if process already exited ...");
+                        exitCode = task.process.exitValue();
+                    } catch (IllegalThreadStateException ex) {
+                        LOGGER.warn("Health check failed, but process is still running. Kill it!");
+                        task.process.destroy();
+                        task.process = null;
+                        fail(driver);
+                    }
+                    if (exitCode >= 0) {
+                        LOGGER.error("Crate process exited with status {}. Restarting now ...", exitCode);
+                        restartCrate(driver);
+                    }
+                }
+            }
+        };
+        return healthCheckScheduler.scheduleWithFixedDelay(checker, 10, 10, SECONDS);
     }
 
     public class Task {
@@ -392,45 +453,7 @@ public class CrateExecutor implements Executor {
                     new String[]{},
                     workingDirectory
             );
-            healthCheck = scheduleHealthCheck(driver, "localhost", task.executableInfo.httpPort());
             return process;
-        }
-
-        public ScheduledFuture<?> scheduleHealthCheck(final ExecutorDriver driver, final String host, final Integer port) {
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-            final Runnable checker = new Runnable() {
-
-                HttpClient client = HttpClientBuilder.create().build();
-                HttpGet request = new HttpGet("http://" + host + ":" + port);
-
-                public void run() {
-                    performHealthCheck(host, port, driver, client, request);
-                }
-            };
-            return scheduler.scheduleWithFixedDelay(checker, 30, 30, SECONDS);
-        }
-
-        public void performHealthCheck(String uri, Integer port, ExecutorDriver driver,
-                                       final HttpClient client, final HttpGet request) {
-            try {
-                HttpResponse response = client.execute(request);
-                int statusCode = response.getStatusLine().getStatusCode();
-                if(!(statusCode >= 200 || statusCode < 300)) {
-                    LOGGER.error("Health check failed. Stopping driver.");
-                    gracefulStop();
-                } else {
-                    LOGGER.info("Health check - OK.");
-                }
-            } catch (IOException e) {
-                try {
-                    process.exitValue();
-                } catch (IllegalThreadStateException itse) {
-                    return;
-                }
-                LOGGER.error("Couldn't reach " + uri + ":" + port);
-                fail(driver);
-            }
         }
 
         public int pid() {
