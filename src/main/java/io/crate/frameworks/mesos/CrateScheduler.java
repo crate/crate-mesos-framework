@@ -21,7 +21,6 @@
 
 package io.crate.frameworks.mesos;
 
-import com.google.common.base.Splitter;
 import com.google.protobuf.ByteString;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
@@ -42,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.crate.frameworks.mesos.SaneProtos.taskID;
+import static java.util.Arrays.asList;
 
 
 public class CrateScheduler implements Scheduler {
@@ -212,7 +212,7 @@ public class CrateScheduler implements Scheduler {
                     state.instances(crateInstances);
 
                     Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-                    driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(taskInfo), filters);
+                    driver.launchTasks(asList(offer.getId()), asList(taskInfo), filters);
                     launched++;
                 }
                 stateStore.state().slavesWithInstances().remove(offer.getSlaveId().getValue());
@@ -232,10 +232,20 @@ public class CrateScheduler implements Scheduler {
     private Protos.ExecutorInfo createExecutor() {
         String path = String.format("http://%s:%d/static/%s", hostIP, configuration.apiPort, JAR_NAME);
         Protos.CommandInfo cmd = Protos.CommandInfo.newBuilder()
-                .addUris(Protos.CommandInfo.URI.newBuilder().setValue(path).setExtract(false).build())
-                .setValue(String.format("java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME))
+                .addAllUris(Arrays.asList(
+                        Protos.CommandInfo.URI.newBuilder()
+                                .setValue(path)
+                                .setExtract(false)
+                                .build(),
+                        Protos.CommandInfo.URI.newBuilder()
+                                .setValue(Main.JAVA_URL)
+                                .setExtract(true)
+                                .build()
+                ))
+                .setValue(
+                        String.format("env && $(pwd)/jre*/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
+                )
                 .build();
-
         return Protos.ExecutorInfo.newBuilder()
                 .setName("Crate Executor")
                 .setExecutorId(

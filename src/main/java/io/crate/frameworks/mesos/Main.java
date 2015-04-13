@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+    public static final String JAVA_URL = "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz";
 
     private static final Set<String> HELP_OPTIONS = Sets.newHashSet("-h", "--help", "help");
     private static final Set<String> PROTECTED_CRATE_ARGS = Sets.newHashSet(
@@ -120,9 +121,10 @@ public class Main {
 
         final double frameworkFailoverTimeout = 31536000d; // 60 * 60 * 24 * 365 = 1y
 
+        final String host = System.getenv("MESOS_HOSTNAME");
         final String webUri = UriBuilder.fromPath("/cluster")
                 .scheme("http")
-                .host(currentHost())
+                .host(host == null ? currentHost() : host)
                 .port(configuration.apiPort)
                 .build().toString();
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
@@ -171,12 +173,12 @@ public class Main {
     public static String currentHost() {
         String host = null;
         try {
-            host = InetAddress.getLocalHost().getHostAddress();
+            host = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            LOGGER.warn("Could not obtain host IP", e);
+            LOGGER.warn("Could not obtain hostname. Using localhost", e);
             host = "127.0.0.1";
         }
-        LOGGER.debug("IP {}", host);
+        LOGGER.debug("HOST={}", host);
         return host;
     }
 }

@@ -4,6 +4,14 @@ Crate-Mesos-Framework
 
 This is an integration framework which allows running and managing Crate_ database through Mesos_.
 
+.. warning::
+
+    **DISCLAIMER**
+    
+    *This is a very early version of Crate-Mesos-Framework;
+    document, code behavior, and anything else may change
+    without notice and/or break older installations!*
+
 Usage
 =====
 
@@ -21,7 +29,7 @@ is launched using the command line.
 In both cases the ``Main`` method requires a ``--crate-version`` argument,
 which is the Crate version that should be used.
 
-Current Crate version is ``0.47.7``.
+Current Crate version is ``0.47.8``.
 
 Execute via Command Line
 ------------------------
@@ -54,7 +62,7 @@ file by listing it in  ``uris`` and by changing the ``cmd``::
     "uris": [
         "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz"
     ],
-    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /path/to/crate-mesos-0.x.x.jar crate-version 0.47.7",
+    "cmd": "$(pwd)/jre*/bin/java $JAVA_OPTS -jar /path/to/crate-mesos-0.x.x.jar --crate-version 0.47.7",
 
 
 And submit it to a running Marathon master::
