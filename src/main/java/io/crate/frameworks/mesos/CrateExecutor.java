@@ -257,7 +257,13 @@ public class CrateExecutor implements Executor {
             driver.sendFrameworkMessage(msg.toStream());
             return false;
         }
-        return fetchAndExtractUri(info.uri());
+        boolean success = true;
+        for (URI uri : info.uris()) {
+            if (!fetchAndExtractUri(uri)) {
+                break;
+            }
+        }
+        return success;
     }
 
     private boolean fetchAndExtractUri(URI uri) {
@@ -303,8 +309,7 @@ public class CrateExecutor implements Executor {
                     new String[]{
                             "tar",
                             "-C", workingDirectory.getAbsolutePath(),
-                            "-xf", tmpFile.getAbsolutePath(),
-                            "--strip-components=1"
+                            "-xf", tmpFile.getAbsolutePath()
                     },
                     new String[]{},
                     workingDirectory
@@ -438,6 +443,7 @@ public class CrateExecutor implements Executor {
             for (Environment.Variable variable : env) {
                 vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
             }
+            vars.add("PATH=$(echo $(pwd)/jre*/bin):$PATH");
             return Joiner.on(" ").join(vars);
         }
 

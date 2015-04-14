@@ -38,7 +38,7 @@ public class CrateExecutableInfo implements Serializable {
     private final static String CDN_URL = "https://cdn.crate.io/downloads/releases";
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateExecutableInfo.class);
 
-    private final URI downloadURI;
+    private final List<URI> downloadURIs;
     private final String nodeNode;
     private final String unicastHosts;
     private final String hostname;
@@ -54,7 +54,9 @@ public class CrateExecutableInfo implements Serializable {
         this.hostname = hostname;
         this.configuration = configuration;
         this.attributes = attributes;
-        this.downloadURI = URI.create(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version));
+        this.downloadURIs = asList(
+                URI.create(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version))
+        );
         this.nodeNode = String.format("%s-%s", configuration.clusterName, execId);
         this.unicastHosts = crateInstances.unicastHosts();
     }
@@ -69,7 +71,7 @@ public class CrateExecutableInfo implements Serializable {
 
     public List<String> arguments() {
         List<String> args = new ArrayList<>(asList(
-                "bin/crate",
+                "crate-*/bin/crate",
                 "-p",
                 "crate.pid",
                 String.format("-Des.cluster.name=%s", configuration.clusterName),
@@ -107,8 +109,8 @@ public class CrateExecutableInfo implements Serializable {
 
     public Integer httpPort() { return configuration.httpPort; }
 
-    public URI uri() {
-        return downloadURI;
+    public List<URI> uris() {
+        return downloadURIs;
     }
 
     public File dataDir() {
