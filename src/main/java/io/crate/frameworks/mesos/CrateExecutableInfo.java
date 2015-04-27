@@ -55,7 +55,9 @@ public class CrateExecutableInfo implements Serializable {
         this.configuration = configuration;
         this.attributes = attributes;
         this.downloadURIs = asList(
-                URI.create(String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version))
+                URI.create(configuration.versionIsDownloadURL() ?
+                        configuration.version :
+                        String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version))
         );
         this.nodeNode = String.format("%s-%s", configuration.clusterName, execId);
         this.unicastHosts = crateInstances.unicastHosts();

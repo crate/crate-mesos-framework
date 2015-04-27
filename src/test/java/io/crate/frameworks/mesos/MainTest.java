@@ -21,6 +21,7 @@
 
 package io.crate.frameworks.mesos;
 
+import com.beust.jcommander.ParameterException;
 import io.crate.frameworks.mesos.config.Configuration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,6 +43,45 @@ public class MainTest {
         Main.parseConfiguration(new String[]{"--crate-version", "0.47.0", "-Des.cluster.name=foo"});
     }
 
+    @Test
+    public void testVersionByVersionNumber() throws Exception {
+        Configuration configuration = Main.parseConfiguration(new String[]{
+                "--crate-version", "0.48.2"
+        });
+        assertThat(configuration.version, is("0.48.2"));
+    }
+
+    @Test
+    public void testVersionByInvalidVersionNumber() throws Exception {
+        expectedException.expect(ParameterException.class);
+        expectedException.expectMessage("The specified Crate version \"0.48.x\" isn't a valid version or download location");
+        Main.parseConfiguration(new String[]{
+                "--crate-version", "0.48.x"
+        });
+    }
+
+    @Test
+    public void testVersionByURL() throws Exception {
+        String downloadLocation = "https://cdn.crate.io/downloads/releases/nightly/crate-0.39.0-201406050908-74848fd.tar.gz";
+        Configuration configuration = Main.parseConfiguration(new String[]{
+                "--crate-version", downloadLocation
+        });
+        assertThat(configuration.version, is(downloadLocation));
+        downloadLocation = "https://cdn.crate.io/downloads/releases/dev/crate-0.49.0-SNAPSHOT.tar.gz";
+        configuration = Main.parseConfiguration(new String[]{
+                "--crate-version", downloadLocation
+        });
+        assertThat(configuration.version, is(downloadLocation));
+    }
+
+    @Test
+    public void testVersionByInvalidURL() throws Exception {
+        expectedException.expect(ParameterException.class);
+        expectedException.expectMessage("The specified Crate version \"http://cdn.crate.io/downloads/releases/download.tar.gz\" isn't a valid version or download location.");
+        Main.parseConfiguration(new String[]{
+                "--crate-version", "http://cdn.crate.io/downloads/releases/download.tar.gz"
+        });
+    }
     @Test
     public void testValidCrateArgsAreSet() throws Exception {
         Configuration configuration = Main.parseConfiguration(new String[]{

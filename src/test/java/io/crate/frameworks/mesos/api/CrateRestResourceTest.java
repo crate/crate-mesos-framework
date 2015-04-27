@@ -30,6 +30,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import javax.ws.rs.core.UriInfo;
+import java.util.HashMap;
+
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
@@ -61,13 +63,21 @@ public class CrateRestResourceTest {
     public void testClusterInfo() throws Exception {
         UriInfo mockedInfo = mock(UriInfo.class);
         GenericAPIResponse res = (GenericAPIResponse) resource.clusterIndex(mockedInfo).getEntity();
-        assertEquals("{resources={heap=256.0, cpus=0.5, disk=1024.0, memory=512.0}, " +
-                        "mesosMaster=zk://localhost:2181/mesos, " +
-                        "api={apiPort=4040}, " +
-                        "cluster={name=crate, httpPort=4200, nodeCount=0, version=0.48.0}, " +
-                        "instances={desired=-1, running=1}, " +
-                        "excludedSlaves={}}",
-                res.getMessage().toString());
+        HashMap<String, Object> entity = (HashMap<String, Object>) res.getMessage();
+        assertEquals(entity.get("cluster"), new HashMap<String, Object>(){
+            {
+                put("version", "0.48.0");
+                put("name", "crate");
+                put("httpPort", 4200);
+                put("nodeCount", 0);
+            }
+        });
+        assertEquals(entity.get("instances"), new HashMap<String, Integer>() {
+            {
+                put("desired", -1);
+                put("running", 1);
+            }
+        });
         assertEquals(200, res.getStatus());
     }
 

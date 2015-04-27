@@ -178,7 +178,6 @@ public class Main {
             LOGGER.warn("Could not obtain hostname. Using localhost", e);
             host = "127.0.0.1";
         }
-        LOGGER.debug("HOST={}", host);
         return host;
     }
 }

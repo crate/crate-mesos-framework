@@ -27,9 +27,13 @@ mesos-slaves. Otherwise it needs to be copied to the mesos-master from where it
 is launched using the command line.
 
 In both cases the ``Main`` method requires a ``--crate-version`` argument,
-which is the Crate version that should be used.
-
+which is the Crate version that should be used. The version number must be
+in the format ``x.y.z``.
 Current Crate version is ``0.47.8``.
+
+Alternatively you can specify a full download URL for Crate. In that case
+the URL needs to be in the format: ``http(s)://<HOST><PATH>/crate-<X>.<Y>.<Z><SUFFIX>.tar.gz``
+
 
 Execute via Command Line
 ------------------------

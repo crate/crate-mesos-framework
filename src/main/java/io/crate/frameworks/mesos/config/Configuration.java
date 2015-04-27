@@ -31,9 +31,10 @@ import org.apache.mesos.Protos;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Configuration implements Serializable{
+public class Configuration implements Serializable {
 
     @Parameter(names = { "--framework-user" })
     public String user = "crate";
@@ -125,6 +126,10 @@ public class Configuration implements Serializable{
         this.version = version;
     }
 
+    public boolean versionIsDownloadURL() {
+        return (this.version != null && this.version.startsWith("http"));
+    }
+
     public void crateArgs(List<String> crateArgs) {
         this.crateArgs = crateArgs;
     }
@@ -136,12 +141,19 @@ public class Configuration implements Serializable{
     public static class VersionValidator implements IParameterValidator {
 
         private static final Pattern VERSION_PATTERN = Pattern.compile("^\\d+\\.\\d+\\.\\d+$");
+        private static final Pattern URL_VERSION_PATTERN = Pattern.compile("^https?:\\/\\/.*crate-\\d+\\.\\d+\\.\\d+(.*)\\.tar\\.gz");
 
         @Override
         public void validate(String name, String value) throws ParameterException {
-            if (!VERSION_PATTERN.matcher(value).matches()) {
+            Matcher matcher = null;
+            if (value.startsWith("http")) {
+                matcher = URL_VERSION_PATTERN.matcher(value);
+            } else {
+                matcher = VERSION_PATTERN.matcher(value);
+            }
+            if (!matcher.matches()) {
                 throw new ParameterException(
-                        String.format("The specified CRATE_VERSION \"%s\" isn't a valid version", value));
+                        String.format("The specified Crate version \"%s\" isn't a valid version or download location.", value));
             }
         }
     }
