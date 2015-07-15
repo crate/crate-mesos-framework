@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
-    public static final String JAVA_URL = "https://downloads.mesosphere.io/java/jre-7u76-linux-x64.tar.gz";
+    public static final String JAVA_URL = "https://cdn.crate.io/downloads/openjdk/jre_7u79.tar.gz";
 
     private static final Set<String> HELP_OPTIONS = Sets.newHashSet("-h", "--help", "help");
     private static final Set<String> PROTECTED_CRATE_ARGS = Sets.newHashSet(

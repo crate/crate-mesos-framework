@@ -5,5 +5,7 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Use custom version of OpenJDK as dependency
+
   - initial framework implementation
     see README.rst for usage and limitations
