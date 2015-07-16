@@ -5,9 +5,9 @@
     "mem": 128,
     "ports": [4050],
     "uris": [
-        "https://cdn.crate.io/downloads/openjdk/jre1.7.0_79.tar.gz"
+        "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz"
     ],
-    "cmd": "$(pwd)/java-*/bin/java $JAVA_OPTS -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-dev --crate-version 0.47.7 --api-port $PORT0 --crate-http-port 4250 --crate-transport-port 4350 --resource-cpus 0.25 --resource-memory 1024",
+    "cmd": "$(pwd)/jre/bin/java $JAVA_OPTS -jar /tmp/crate-mesos.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-dev --crate-version 0.47.7 --api-port $PORT0 --crate-http-port 4250 --crate-transport-port 4350 --resource-cpus 0.25 --resource-memory 1024",
     "healthChecks": [
         {
             "protocol": "HTTP",
