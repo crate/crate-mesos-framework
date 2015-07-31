@@ -42,6 +42,9 @@ public class Configuration implements Serializable {
     @Parameter(names = { "--framework-role" })
     public String role = "*";
 
+    @Parameter(names = { "--framework-name" })
+    public String frameworkName = "crate-mesos";
+
     @Parameter(names = { "--mesos-master" })
     private String mesosMaster = null;
 
@@ -108,6 +111,7 @@ public class Configuration implements Serializable {
                 "mesosMaster='" + mesosMaster + '\'' +
                 ", zookeeper='" + zookeeper + '\'' +
                 ", version='" + version + '\'' +
+                ", frameworkName='" + frameworkName + '\'' +
                 ", clusterName='" + clusterName + '\'' +
                 ", nodeCount=" + nodeCount +
                 ", httpPort=" + httpPort +
