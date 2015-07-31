@@ -128,7 +128,7 @@ public class Main {
                 .port(configuration.apiPort)
                 .build().toString();
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
-                .setName("crate-mesos")
+                .setName(configuration.frameworkName)
                 .setUser(configuration.user)
                 .setRole(configuration.role)
                 .setWebuiUrl(webUri)
@@ -137,7 +137,7 @@ public class Main {
 
         PersistentStateStore stateStore = new PersistentStateStore(
                 new ZooKeeperState(configuration.zookeeper, 20_000, TimeUnit.MILLISECONDS,
-                        String.format("/crate-mesos/%s", configuration.clusterName)),
+                        String.format("/%s/%s", configuration.frameworkName, configuration.clusterName)),
                 configuration.nodeCount);
 
         Optional<String> frameworkId = stateStore.state().frameworkId();
