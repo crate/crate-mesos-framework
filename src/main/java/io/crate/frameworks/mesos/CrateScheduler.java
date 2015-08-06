@@ -223,8 +223,8 @@ public class CrateScheduler implements Scheduler {
     }
 
     private boolean slaveWithRunningInstance(String slaveId) {
-        return (stateStore.state().slavesWithInstances().isEmpty() ||
-                    stateStore.state().slavesWithInstances().contains(slaveId));
+        return stateStore.state().slavesWithInstances().isEmpty() ||
+                    stateStore.state().slavesWithInstances().contains(slaveId);
 
     }
 

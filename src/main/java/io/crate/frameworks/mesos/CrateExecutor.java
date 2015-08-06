@@ -144,7 +144,7 @@ public class CrateExecutor implements Executor {
                         String.format("localhost:%s", crateTask.transportPort()),
                         crateTask.nodeName())
                 );
-                startupCheck.run();
+                startupCheck.start();
                 return;
             }
         }
@@ -218,10 +218,8 @@ public class CrateExecutor implements Executor {
     public void frameworkMessage(ExecutorDriver driver, byte[] data) {
         try {
             CrateMessage crateMessage = CrateMessage.fromStream(data);
-            if (crateMessage != null) {
-                if(crateMessage.type().equals(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN)) {
-                    forceShutdown = true;
-                }
+            if (crateMessage != null && crateMessage.type().equals(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN)) {
+              forceShutdown = true;
             }
         } catch (IOException e) {
             LOGGER.error("Could not process message", e);

@@ -131,7 +131,7 @@ public class Configuration implements Serializable {
     }
 
     public boolean versionIsDownloadURL() {
-        return (this.version != null && this.version.startsWith("http"));
+        return this.version != null && this.version.startsWith("http");
     }
 
     public void crateArgs(List<String> crateArgs) {
