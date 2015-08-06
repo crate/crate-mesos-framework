@@ -5,8 +5,8 @@ Crate-Mesos-Framework DEVELOPMENT
 Prerequisites
 =============
 
-Crate-mesos-framework is written in Java_ 7, so a JDK needs to be installed. On OS X we
-recommend using `Oracle's Java`_ and OpenJDK_ on Linux Systems.
+Crate-mesos-framework is written in Java_ 7, so a JDK needs to be installed.
+On OS X we recommend using `Oracle's Java`_ and OpenJDK_ on Linux Systems.
 
 Git checkout
 ============
@@ -32,7 +32,8 @@ Gradle can be used to generate project files that can be opened in IntelliJ::
 Building and running Crate-Mesos-Framework
 ==========================================
 
-Before the crate-mesos-framework can be launched the ``jar`` file has to be generated::
+Before the crate-mesos-framework can be launched the ``jar`` file has to be
+generated::
 
     ./gradlew fatJar
 
@@ -47,8 +48,8 @@ If ``vagrant`` is installed simply run::
 This will create and provision the VM if this is the first time ``vagrant up``
 is run, otherwise it will simply boot up the existing VM.
 
-Once the VM is up and running the crate-mesos-framework can be started `inside` the VM.
-To do so ``vagrant ssh`` can be used::
+Once the VM is up and running the crate-mesos-framework can be started `inside`
+the VM. To do so ``vagrant ssh`` can be used::
 
     vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.47.7"
 
@@ -62,21 +63,20 @@ The Mesos WebUI should be available under http://localhost:5050 immediately
 after ``vagrant up`` is finished.
 
 Once the crate-mesos-framework has been launched Crate should become available
-(after some time, as docker pull might take some time) under
-http://localhost:4200/admin
+under http://localhost:4200/admin
 
-
-As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
-also possible to simply use ``bin/deploy --crate-version 0.47.7`` which will invoke both commands.
+**As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
+also possible to simply use ``bin/deploy --crate-version 0.47.7`` which will
+invoke both commands.**
 
 Running Crate-Mesos-Framework via Marathon
 ------------------------------------------
 
-``Crate-Mesos-Framework`` instances can be run and controlled through Marathon_ system.
-For installing Marathon, please refer to `Mesosphere install guide`_. Marathon WebUI
-should be available under http://localhost:8080 after setting up.
-To run ``Crate-Mesos-Framework`` instance via ``HTTP`` you need to ``POST`` a JSON file
-with configuration environment variables to Marathon.
+``Crate-Mesos-Framework`` instances can be run and controlled through Marathon_
+system. For installing Marathon, please refer to `Mesosphere install guide`_.
+Marathon WebUI should be available under http://localhost:8080 after setting up.
+To run ``Crate-Mesos-Framework`` instance via ``HTTP`` you need to ``POST`` a
+JSON file with configuration environment variables to Marathon.
 
 Example
 -------
@@ -98,11 +98,7 @@ Example
 
 ::
 
-::
-
     curl -s -XPOST http://localhost:8080/v2/apps -d@crate-mesos.json -H "Content-Type: application/json"
-
-::
 
 Running tests
 =============
