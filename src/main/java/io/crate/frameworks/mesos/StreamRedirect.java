@@ -21,6 +21,8 @@
 
 package io.crate.frameworks.mesos;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.*;
 
 public class StreamRedirect extends Thread {
@@ -34,15 +36,20 @@ public class StreamRedirect extends Thread {
     }
 
     public void run() {
+        InputStreamReader streamReader = null;
+        BufferedReader bufferedReader = null;
         try {
-            InputStreamReader streamReader = new InputStreamReader(inputStream);
-            BufferedReader bufferedReader = new BufferedReader(streamReader);
-            String line = null;
+            streamReader = new InputStreamReader(inputStream);
+            bufferedReader = new BufferedReader(streamReader);
+            String line;
             while ((line = bufferedReader.readLine()) != null)
                 printStream.println(line);
         }
         catch (IOException ioe) {
             ioe.printStackTrace();
+        } finally {
+          IOUtils.closeQuietly(bufferedReader);
+          IOUtils.closeQuietly(streamReader);
         }
     }
 }

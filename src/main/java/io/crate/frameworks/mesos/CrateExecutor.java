@@ -26,6 +26,7 @@ import com.google.protobuf.ByteString;
 import io.crate.action.sql.SQLRequest;
 import io.crate.action.sql.SQLResponse;
 import io.crate.client.CrateClient;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -45,6 +46,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -273,11 +275,12 @@ public class CrateExecutor implements Executor {
             String fn = new File(download.getFile()).getName();
             File tmpFile = new File(fn);
             if (!tmpFile.exists()) {
-                tmpFile.createNewFile();
-                LOGGER.debug("Fetch: {} -> {}", download, tmpFile);
-                ReadableByteChannel rbc = Channels.newChannel(download.openStream());
-                FileOutputStream stream = new FileOutputStream(tmpFile);
-                stream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                if(tmpFile.createNewFile()) {
+                  LOGGER.debug("Fetch: {} -> {}", download, tmpFile);
+                  ReadableByteChannel rbc = Channels.newChannel(download.openStream());
+                  FileOutputStream stream = new FileOutputStream(tmpFile);
+                  stream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                }
             } else {
                 LOGGER.debug("tarball already downloaded");
             }
@@ -463,12 +466,17 @@ public class CrateExecutor implements Executor {
         }
 
         public int pid() {
+            FileInputStream pidFile = null;
+            BufferedReader in = null;
             try {
-                FileInputStream pidFile = new FileInputStream("crate.pid");
-                BufferedReader in = new BufferedReader(new InputStreamReader(pidFile));
-                return Integer.valueOf(in.readLine());
+                pidFile = new FileInputStream("crate.pid");
+                in = new BufferedReader(new InputStreamReader(pidFile, Charset.defaultCharset()));
+                return Integer.parseInt(in.readLine());
             } catch (IOException e) {
                 LOGGER.error("Reading PID from crate.pid failed.");
+            } finally {
+              IOUtils.closeQuietly(in);
+              IOUtils.closeQuietly(pidFile);
             }
             return -1;
         }

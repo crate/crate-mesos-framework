@@ -141,7 +141,7 @@ public class CrateRestResource {
                     if (replicas.size() == 2 && val.equals("all")) {
                         val = replicas.get(0);
                     }
-                    maxReplicas = Math.max(maxReplicas, Integer.valueOf(val));
+                    maxReplicas = Math.max(maxReplicas, Integer.parseInt(val));
                 }
             } catch (NoNodeAvailableException e) {
                 // since we do not have a crate node to connect to we can accept the request to start up / shut down nodes.
