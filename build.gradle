@@ -1,16 +1,9 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-
-    dependencies {
-        classpath 'eu.appsatori:gradle-fatjar-plugin:0.3'
-    }
+plugins {
+  id "eu.appsatori.fatjar" version "0.3"
 }
 
 apply plugin: 'java'
 apply plugin: 'idea'
-apply plugin: 'eu.appsatori.fatjar'
   
 group = 'io.crate'
 sourceCompatibility = 1.7
@@ -129,8 +122,4 @@ idea {
             }
         }
     }
-}
-
-task wrapper(type: Wrapper) {
-    gradleVersion = '2.3'
 }
