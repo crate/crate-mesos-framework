@@ -87,7 +87,7 @@ public class Main {
                 safeArgs.add(arg);
             }
         }
-        jCommander = new JCommander(configuration, safeArgs.toArray(new String[safeArgs.size()]));
+        jCommander = new JCommander(configuration, safeArgs.toArray(new String[safeArgs.size()]));     // todo:  jcommander is never used
         configuration.crateArgs(crateArgs);
         LOGGER.debug("args: {}", configuration);
         return configuration;
@@ -171,7 +171,7 @@ public class Main {
     }
 
     public static String currentHost() {
-        String host = null;
+        String host;
         try {
             host = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
