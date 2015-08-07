@@ -196,6 +196,7 @@ public class CrateExecutor implements Executor {
     }
 
     private void forceShutdownCrate(ExecutorDriver driver) {
+        LOGGER.debug("Stop Crate process.");
         task.process.destroy();
         driver.sendStatusUpdate(TaskStatus.newBuilder()
                 .setTaskId(currentTaskId)
@@ -230,6 +231,7 @@ public class CrateExecutor implements Executor {
     @Override
     public void shutdown(ExecutorDriver driver) {
         LOGGER.warn("Executor driver is shutting down ...");
+        forceShutdownCrate(driver);
     }
 
     @Override

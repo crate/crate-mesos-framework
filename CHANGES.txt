@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Stop Crate process when executor is shutting down
+
   - Make framework name configurable
 
   - Use JRE from OpenJDK from
