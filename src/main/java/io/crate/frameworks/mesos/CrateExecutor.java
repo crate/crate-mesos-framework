@@ -195,7 +195,7 @@ public class CrateExecutor implements Executor {
         }
     }
 
-    private void forceShutdownCrate(ExecutorDriver driver) {
+    public void forceShutdownCrate(ExecutorDriver driver) {
         LOGGER.debug("Stop Crate process.");
         task.process.destroy();
         driver.sendStatusUpdate(TaskStatus.newBuilder()
@@ -520,13 +520,24 @@ public class CrateExecutor implements Executor {
         }
     }
 
+    private static void addShutdownHook(final CrateExecutor executor, final MesosExecutorDriver driver) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+          @Override
+          public void run() {
+            executor.forceShutdownCrate(driver);
+          }
+        });
+    }
+
     /**
      * Main method for executor.
      */
     public static void main(String[] args) throws IOException {
         BasicConfigurator.configure();
         LOGGER.debug("Launch executor process ...");
-        MesosExecutorDriver driver = new MesosExecutorDriver(new CrateExecutor());
+        final CrateExecutor executor = new CrateExecutor();
+        MesosExecutorDriver driver = new MesosExecutorDriver(executor);
+        addShutdownHook(executor, driver);
         System.exit(driver.run() == Status.DRIVER_STOPPED ? 0 : 1);
     }
 }
