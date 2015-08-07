@@ -21,8 +21,6 @@
 
 package io.crate.frameworks.mesos;
 
-import org.apache.mesos.Protos;
-
 import java.io.Serializable;
 
 public class CrateInstance implements Serializable {
@@ -33,7 +31,7 @@ public class CrateInstance implements Serializable {
     private final int transportPort;
     private final String executorID;
     private final String slaveID;
-    private String nodeId;
+    private String nodeId;  // todo:  this is never read
     private State state;
 
     public enum State implements Serializable {

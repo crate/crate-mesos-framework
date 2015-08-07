@@ -402,7 +402,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
         LOGGER.info("Received framework message from executor {} on slave {}", executorID.getValue(), slaveID.getValue());
-        CrateMessage data = null;
+        CrateMessage data;
         try {
             data = CrateMessage.fromStream(bytes);
         } catch (IOException e) {

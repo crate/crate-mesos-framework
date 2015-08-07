@@ -64,7 +64,6 @@ public class CrateExecutor implements Executor {
     private TaskID currentTaskId = null;
     private ExecutorDriver driver;
     private ScheduledFuture<?> healthCheck;
-    private String nodeId = null; // id of the crate instance
     private Boolean forceShutdown = false;
     private final ScheduledExecutorService healthCheckScheduler = Executors.newScheduledThreadPool(1);
 
@@ -89,7 +88,6 @@ public class CrateExecutor implements Executor {
                     response = client.sql(request).actionGet();
                 } catch (InterruptedException e) {
                     LOGGER.error("Crate startup was interrupted. Could not obtain node id.", e);
-                    continue;
                 } catch (Exception e) {
                     LOGGER.debug("Crate node is not running yet ... waiting to start up!");
                     response = null;
@@ -259,7 +257,7 @@ public class CrateExecutor implements Executor {
             driver.sendFrameworkMessage(msg.toStream());
             return false;
         }
-        boolean success = true;
+        boolean success = true;   // todo:  this is always true... what is intended?
         for (URI uri : info.uris()) {
             if (!fetchAndExtractUri(uri)) {
                 break;
@@ -306,7 +304,8 @@ public class CrateExecutor implements Executor {
 
     private boolean extractFile(File tmpFile) {
         LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), workingDirectory.getAbsolutePath());
-        boolean success = true;
+        boolean success = true;       // todo:  this is always true
+
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{
@@ -320,6 +319,7 @@ public class CrateExecutor implements Executor {
             process.waitFor();
         } catch (IOException|InterruptedException e) {
             LOGGER.error("Failed to extract file", e);
+            success = false;
         }
         return success;
     }
@@ -371,7 +371,7 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_RUNNING);
         if (response != null) {
-            nodeId = (String) response.rows()[0][0];
+            String nodeId = (String) response.rows()[0][0];
             LOGGER.info("NODE ID = {}", nodeId);
             status.setData(ByteString.copyFromUtf8(nodeId));
         }

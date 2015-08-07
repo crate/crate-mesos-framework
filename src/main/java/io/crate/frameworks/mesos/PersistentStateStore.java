@@ -63,9 +63,7 @@ public class PersistentStateStore {
             if (stateVariable == null) {
                 LOGGER.error("Couldn't save state in Zookeeper");
             }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
     }
