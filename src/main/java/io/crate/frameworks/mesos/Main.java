@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.core.UriBuilder;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -87,7 +88,8 @@ public class Main {
                 safeArgs.add(arg);
             }
         }
-        jCommander = new JCommander(configuration, safeArgs.toArray(new String[safeArgs.size()]));
+        // todo:  jCommander below is never used, if removed safeArgs is never used.  It is unclear of it's purpose
+        jCommander = new JCommander(configuration, safeArgs.toArray(new String[safeArgs.size()]));     // todo:  jcommander is never used
         configuration.crateArgs(crateArgs);
         LOGGER.debug("args: {}", configuration);
         return configuration;
@@ -107,7 +109,7 @@ public class Main {
             if (secret == null) {
                 LOGGER.error("Expecting authentication secret in the environment");
             } else {
-                credential.setSecret(ByteString.copyFrom(secret.getBytes()));
+                credential.setSecret(ByteString.copyFrom(secret.getBytes(Charset.defaultCharset())));
             }
             return Optional.of(credential.build());
         } else {
@@ -171,7 +173,7 @@ public class Main {
     }
 
     public static String currentHost() {
-        String host = null;
+        String host;
         try {
             host = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {

@@ -41,7 +41,7 @@ public class CrateExecutableInfo implements Serializable {
     private final List<URI> downloadURIs;
     private final String nodeNode;
     private final String unicastHosts;
-    private final String hostname;
+    private final String hostname;   // todo:  this is never used
     private final String execId;
     private final Configuration configuration;
     private final List<Attribute> attributes;

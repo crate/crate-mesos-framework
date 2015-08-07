@@ -68,7 +68,7 @@ public class CrateScheduler implements Scheduler {
             this.reason = reason;
         }
 
-        private long calculateDelay(int count) {
+        private long calculateDelay(long count) {
             return Math.min(count * count * 1000L, MAX_DELAY);
         }
 
@@ -123,8 +123,8 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
         String[] version = MesosNativeLibrary.VERSION.split("\\.", -1);
-        int major = Integer.valueOf(version[0]);
-        int minor = Integer.valueOf(version[1]);
+        int major = Integer.parseInt(version[0]);
+        int minor = Integer.parseInt(version[1]);
         if (major == 0 && minor < 21) {
             // There is already a JIRA ticket for proper version validation.
             // todo: improve version validation once available
@@ -223,8 +223,8 @@ public class CrateScheduler implements Scheduler {
     }
 
     private boolean slaveWithRunningInstance(String slaveId) {
-        return (stateStore.state().slavesWithInstances().isEmpty() ||
-                    stateStore.state().slavesWithInstances().contains(slaveId));
+        return stateStore.state().slavesWithInstances().isEmpty() ||
+                    stateStore.state().slavesWithInstances().contains(slaveId);
 
     }
 
@@ -402,7 +402,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void frameworkMessage(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
         LOGGER.info("Received framework message from executor {} on slave {}", executorID.getValue(), slaveID.getValue());
-        CrateMessage data = null;
+        CrateMessage data;
         try {
             data = CrateMessage.fromStream(bytes);
         } catch (IOException e) {
@@ -417,6 +417,8 @@ public class CrateScheduler implements Scheduler {
                 stateStore.save();
                 scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
                 break;
+          default:
+                LOGGER.info("Switched on none cased data type: {}", data.type());
         }
     }
 

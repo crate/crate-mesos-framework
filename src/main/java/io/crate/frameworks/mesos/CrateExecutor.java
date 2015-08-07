@@ -26,6 +26,7 @@ import com.google.protobuf.ByteString;
 import io.crate.action.sql.SQLRequest;
 import io.crate.action.sql.SQLResponse;
 import io.crate.client.CrateClient;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
@@ -45,6 +46,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -62,7 +64,6 @@ public class CrateExecutor implements Executor {
     private TaskID currentTaskId = null;
     private ExecutorDriver driver;
     private ScheduledFuture<?> healthCheck;
-    private String nodeId = null; // id of the crate instance
     private Boolean forceShutdown = false;
     private final ScheduledExecutorService healthCheckScheduler = Executors.newScheduledThreadPool(1);
 
@@ -87,7 +88,6 @@ public class CrateExecutor implements Executor {
                     response = client.sql(request).actionGet();
                 } catch (InterruptedException e) {
                     LOGGER.error("Crate startup was interrupted. Could not obtain node id.", e);
-                    continue;
                 } catch (Exception e) {
                     LOGGER.debug("Crate node is not running yet ... waiting to start up!");
                     response = null;
@@ -144,7 +144,7 @@ public class CrateExecutor implements Executor {
                         String.format("localhost:%s", crateTask.transportPort()),
                         crateTask.nodeName())
                 );
-                startupCheck.run();
+                startupCheck.start();
                 return;
             }
         }
@@ -218,10 +218,8 @@ public class CrateExecutor implements Executor {
     public void frameworkMessage(ExecutorDriver driver, byte[] data) {
         try {
             CrateMessage crateMessage = CrateMessage.fromStream(data);
-            if (crateMessage != null) {
-                if(crateMessage.type().equals(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN)) {
-                    forceShutdown = true;
-                }
+            if (crateMessage != null && crateMessage.type().equals(CrateMessage.Type.MESSAGE_CLUSTER_SHUTDOWN)) {
+              forceShutdown = true;
             }
         } catch (IOException e) {
             LOGGER.error("Could not process message", e);
@@ -259,7 +257,7 @@ public class CrateExecutor implements Executor {
             driver.sendFrameworkMessage(msg.toStream());
             return false;
         }
-        boolean success = true;
+        boolean success = true;   // todo:  this is always true... what is intended?
         for (URI uri : info.uris()) {
             if (!fetchAndExtractUri(uri)) {
                 break;
@@ -275,11 +273,12 @@ public class CrateExecutor implements Executor {
             String fn = new File(download.getFile()).getName();
             File tmpFile = new File(fn);
             if (!tmpFile.exists()) {
-                tmpFile.createNewFile();
-                LOGGER.debug("Fetch: {} -> {}", download, tmpFile);
-                ReadableByteChannel rbc = Channels.newChannel(download.openStream());
-                FileOutputStream stream = new FileOutputStream(tmpFile);
-                stream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                if(tmpFile.createNewFile()) {
+                  LOGGER.debug("Fetch: {} -> {}", download, tmpFile);
+                  ReadableByteChannel rbc = Channels.newChannel(download.openStream());
+                  FileOutputStream stream = new FileOutputStream(tmpFile);
+                  stream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+                }
             } else {
                 LOGGER.debug("tarball already downloaded");
             }
@@ -305,7 +304,8 @@ public class CrateExecutor implements Executor {
 
     private boolean extractFile(File tmpFile) {
         LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), workingDirectory.getAbsolutePath());
-        boolean success = true;
+        boolean success = true;       // todo:  this is always true
+
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{
@@ -319,6 +319,7 @@ public class CrateExecutor implements Executor {
             process.waitFor();
         } catch (IOException|InterruptedException e) {
             LOGGER.error("Failed to extract file", e);
+            success = false;
         }
         return success;
     }
@@ -370,7 +371,7 @@ public class CrateExecutor implements Executor {
                 .setTaskId(currentTaskId)
                 .setState(TaskState.TASK_RUNNING);
         if (response != null) {
-            nodeId = (String) response.rows()[0][0];
+            String nodeId = (String) response.rows()[0][0];
             LOGGER.info("NODE ID = {}", nodeId);
             status.setData(ByteString.copyFromUtf8(nodeId));
         }
@@ -465,12 +466,17 @@ public class CrateExecutor implements Executor {
         }
 
         public int pid() {
+            FileInputStream pidFile = null;
+            BufferedReader in = null;
             try {
-                FileInputStream pidFile = new FileInputStream("crate.pid");
-                BufferedReader in = new BufferedReader(new InputStreamReader(pidFile));
-                return Integer.valueOf(in.readLine());
+                pidFile = new FileInputStream("crate.pid");
+                in = new BufferedReader(new InputStreamReader(pidFile, Charset.defaultCharset()));
+                return Integer.parseInt(in.readLine());
             } catch (IOException e) {
                 LOGGER.error("Reading PID from crate.pid failed.");
+            } finally {
+              IOUtils.closeQuietly(in);
+              IOUtils.closeQuietly(pidFile);
             }
             return -1;
         }

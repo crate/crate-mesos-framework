@@ -104,8 +104,8 @@ public class CrateState implements Serializable {
     }
 
     public void removeSlaveIdFromExcludeList(String slaveId) {
-        for (String key : excludedSlaves.keySet()) {
-            excludedSlaves.get(key).remove(slaveId);
+        for( Map.Entry<String, List<String>> slaves : excludedSlaves.entrySet()) {
+          slaves.getValue().remove(slaveId);
         }
     }
     public boolean removeSlaveIdFromExcludeList(String reason, String slaveId) {
@@ -125,8 +125,9 @@ public class CrateState implements Serializable {
     public List<String> excludedSlaveIds() {
         if (excludedSlaves.size() == 0) return Collections.emptyList();
         List<String> allIds = new ArrayList<>();
-        for (String key : excludedSlaves.keySet()) {
-            allIds.addAll(excludedSlaves.get(key));
+
+        for( Map.Entry<String, List<String>> slaves : excludedSlaves.entrySet()) {
+          allIds.addAll(slaves.getValue());
         }
         return allIds;
 

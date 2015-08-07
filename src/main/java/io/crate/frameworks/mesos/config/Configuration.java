@@ -131,7 +131,7 @@ public class Configuration implements Serializable {
     }
 
     public boolean versionIsDownloadURL() {
-        return (this.version != null && this.version.startsWith("http"));
+        return this.version != null && this.version.startsWith("http");
     }
 
     public void crateArgs(List<String> crateArgs) {
@@ -149,7 +149,7 @@ public class Configuration implements Serializable {
 
         @Override
         public void validate(String name, String value) throws ParameterException {
-            Matcher matcher = null;
+            Matcher matcher;
             if (value.startsWith("http")) {
                 matcher = URL_VERSION_PATTERN.matcher(value);
             } else {

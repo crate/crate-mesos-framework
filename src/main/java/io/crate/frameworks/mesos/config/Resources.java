@@ -34,7 +34,7 @@ public class Resources {
     private static final Function<Protos.Resource, String> RESOURCE_NAME = new Function<Protos.Resource, String>() {
         @Override
         public String apply (Protos.Resource input) {
-            return input.getName();
+            return input != null ? input.getName() : "Unnamed";
         }
     };
 
