@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Added shutdown hook to terminate crate if the executor goes down
+
   - Stop Crate process when executor is shutting down
 
   - Make framework name configurable
