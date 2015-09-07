@@ -38,6 +38,9 @@ public class CrateState implements Serializable {
     private HashMap<String, List<String>> excludedSlaves = new HashMap<>();
     private Set<String> slavesWithInstance = new HashSet<>();
 
+    private int httpPort = 0;
+    private int transportPort = 0;
+
     private static final long serialVersionUID = 1L;
 
     public static final int UNDEFINED_DESIRED_INSTANCES = -1;
@@ -49,8 +52,7 @@ public class CrateState implements Serializable {
         }
         ByteArrayInputStream in = new ByteArrayInputStream(value);
         try (ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
-            CrateState state = (CrateState) objectInputStream.readObject();
-            return state;
+            return (CrateState) objectInputStream.readObject();
         } catch (ClassNotFoundException e) {
             LOGGER.error("Could not deserialize ClusterState:", e);
         }
@@ -89,6 +91,22 @@ public class CrateState implements Serializable {
 
     public Optional<String> frameworkId() {
         return Optional.fromNullable(frameworkId);
+    }
+
+    public void httpPort(int httpPort) {
+        this.httpPort = httpPort;
+    }
+
+    public int httpPort() {
+        return this.httpPort;
+    }
+
+    public void transportPort(int transportPort) {
+        this.transportPort = transportPort;
+    }
+
+    public int transportPort() {
+        return this.transportPort;
     }
 
     public int missingInstances() {

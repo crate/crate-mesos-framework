@@ -41,7 +41,7 @@ public class CrateExecutableInfoTest {
         configuration.dataPath = "/mnt/ssd1/crate";
         configuration.blobPath= "/mnt/data1/crate";
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("host1", "1", "0.48.0", 4300, "exec-1", "slave-1"));
+        instances.addInstance(new CrateInstance("host1", "1", "0.48.0", 4200, 4300, "exec-1", "slave-1"));
         List<Protos.Attribute> attr = ImmutableList.of(
                 Protos.Attribute.newBuilder()
                         .setType(Protos.Value.Type.TEXT)
@@ -49,7 +49,8 @@ public class CrateExecutableInfoTest {
                         .setText(Protos.Value.Text.newBuilder().setValue("a").build())
                         .build()
         );
-        CrateExecutableInfo info = new CrateExecutableInfo(configuration, "host1", instances, attr);
+        CrateExecutableInfo info = new CrateExecutableInfo(configuration, "host1", 4200, 4300,
+                instances.unicastHosts(), attr);
         byte[] serializedInfo = info.toStream();
         CrateExecutableInfo newInfo = CrateExecutableInfo.fromStream(serializedInfo);
         Protos.Environment.Variable heap = Protos.Environment.Variable.newBuilder()
@@ -64,25 +65,33 @@ public class CrateExecutableInfoTest {
     }
 
     @Test
-    public void testTransportPortIsSetCorrectly() throws Exception {
+    public void testPortsAreSetCorrectly() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.transportPort = 4250;
+        configuration.httpPort = 4201;
+        configuration.transportPort = 4301;
+
+        CrateState state = new CrateState();
+        state.httpPort(4200);
+        state.transportPort(4300);
 
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("runningHost", "1", "0.47.7", 4350, "exec-1", "slave-1"));
-        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
-                ImmutableList.<Protos.Attribute>of());
+        instances.addInstance(new CrateInstance("runningHost", "1", "0.47.7",
+                state.httpPort(), state.transportPort(), "exec-1", "slave-1"));
+        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1",
+                state.httpPort(), state.transportPort(), instances.unicastHosts(), ImmutableList.<Protos.Attribute>of());
         List<String> args = host1.arguments();
 
-        assertThat(args, Matchers.hasItem("-Des.transport.tcp.port=4250"));
-        assertThat(args, Matchers.hasItem("-Des.discovery.zen.ping.unicast.hosts=runningHost:4350"));
+        assertThat(args, Matchers.hasItem("-Des.http.port=4200"));
+        assertThat(args, Matchers.hasItem("-Des.transport.tcp.port=4300"));
+        assertThat(args, Matchers.hasItem("-Des.discovery.zen.ping.unicast.hosts=runningHost:4300"));
     }
 
     @Test
     public void testAttributeFromOffersAreSetAsNodeTags() throws Exception {
         Configuration configuration = new Configuration();
         CrateInstances instances = new CrateInstances();
-        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
+        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", 4200, 4300,
+                instances.unicastHosts(),
                 ImmutableList.of(
                         Protos.Attribute.newBuilder()
                                 .setType(Protos.Value.Type.TEXT)
@@ -98,8 +107,8 @@ public class CrateExecutableInfoTest {
         Configuration configuration = new Configuration();
         configuration.crateArgs(Arrays.asList("-Des.foo=x"));
         CrateInstances instances = new CrateInstances();
-        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
-                ImmutableList.<Protos.Attribute>of());
+        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", 4200, 4300,
+                instances.unicastHosts(), ImmutableList.<Protos.Attribute>of());
 
         assertThat(host1.arguments(), Matchers.hasItem("-Des.foo=x"));
     }

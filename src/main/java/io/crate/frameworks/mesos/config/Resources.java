@@ -23,6 +23,7 @@ package io.crate.frameworks.mesos.config;
 
 import com.google.common.base.Function;
 import com.google.common.collect.*;
+import io.crate.frameworks.mesos.CrateState;
 import org.apache.mesos.Protos;
 
 import java.util.List;
@@ -39,25 +40,24 @@ public class Resources {
     };
 
     @SuppressWarnings("RedundantIfStatement")
-    public static boolean matches(List<Protos.Resource> offeredResources, Configuration configuration) {
+    public static boolean matches(List<Protos.Resource> offeredResources, Configuration configuration, CrateState state) {
         ImmutableListMultimap<String, Protos.Resource> resourceMap = Multimaps.index(offeredResources, RESOURCE_NAME);
 
-        Protos.Resource cpus1 = getOnlyElement(resourceMap.get("cpus"));
-        if (cpus1.getScalar().getValue() < configuration.resCpus) {
+        Protos.Resource cpus = getOnlyElement(resourceMap.get("cpus"));
+        if (cpus.getScalar().getValue() < configuration.resCpus) {
             return false;
         }
 
         Protos.Resource mem = getOnlyElement(resourceMap.get("mem"));
-
         if (mem.getScalar().getValue() < configuration.resMemory) {
             return false;
         }
 
         ImmutableList<Protos.Resource> ports = resourceMap.get("ports");
-        if(!isPortInRange(configuration.httpPort, ports)) {
+        if (!isPortInRange(state.httpPort(), ports)) {
             return false;
         }
-        if(!isPortInRange(configuration.transportPort, ports)) {
+        if (!isPortInRange(state.transportPort(), ports)) {
             return false;
         }
 

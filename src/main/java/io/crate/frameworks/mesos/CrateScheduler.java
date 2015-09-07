@@ -137,6 +137,12 @@ public class CrateScheduler implements Scheduler {
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         state.frameworkId(frameworkID.getValue());
+        if (state.httpPort() == 0) {
+            state.httpPort(configuration.httpPort);
+        }
+        if (state.transportPort() == 0) {
+            state.transportPort(configuration.transportPort);
+        }
         stateStore.save();
         crateInstances = state.crateInstances();
 
@@ -205,7 +211,8 @@ public class CrateScheduler implements Scheduler {
                             offer.getHostname(),
                             taskId.getValue(),
                             version,
-                            configuration.transportPort,
+                            state.httpPort(),
+                            state.transportPort(),
                             taskInfo.getExecutor().getExecutorId().getValue(),
                             taskInfo.getSlaveId().getValue()
                     ));
@@ -262,7 +269,7 @@ public class CrateScheduler implements Scheduler {
             LOGGER.debug("got already an instance on {}, rejecting offer {}", offer.getHostname(), offer.getId().getValue());
             return null;
         }
-        if (!Resources.matches(offer.getResourcesList(), configuration)) {
+        if (!Resources.matches(offer.getResourcesList(), configuration, stateStore.state())) {
             LOGGER.debug("can't use offer {}; not enough resources", offer.getId().getValue());
             return null;
         }
@@ -273,7 +280,9 @@ public class CrateScheduler implements Scheduler {
         return new CrateExecutableInfo(
                 configuration,
                 offer.getHostname(),
-                crateInstances,
+                stateStore.state().httpPort(),
+                stateStore.state().transportPort(),
+                crateInstances.unicastHosts(),
                 attributes
         );
     }
