@@ -72,7 +72,7 @@ public class CrateSchedulerTest {
     @Test
     public void testThatRegisteredWithInstancesRunning() throws Exception {
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("foo", "1", "0.47.0", 4300, "exec-1", "slave-1"));
+        instances.addInstance(new CrateInstance("foo", "1", "0.47.0", 4200, 4300, "exec-1", "slave-1"));
         state.desiredInstances(0);
         state.instances(instances);
 
@@ -114,7 +114,7 @@ public class CrateSchedulerTest {
         Protos.TaskID task = taskID("1");
         // configured version should be changed to the version of the running instance
         CrateInstances instances = new CrateInstances();
-        instances.addInstance(new CrateInstance("host1", task.getValue(), "0.47.7", 4300, "exec1", "slave1"));
+        instances.addInstance(new CrateInstance("host1", task.getValue(), "0.47.7", 4200, 4300, "exec1", "slave1"));
         state.instances(instances);
         state.desiredInstances(5);
 

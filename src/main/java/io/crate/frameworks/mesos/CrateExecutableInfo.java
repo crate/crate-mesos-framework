@@ -45,14 +45,20 @@ public class CrateExecutableInfo implements Serializable {
     private final String execId;
     private final Configuration configuration;
     private final List<Attribute> attributes;
+    private final int httpPort;
+    private final int transportPort;
 
     public CrateExecutableInfo(Configuration configuration,
                                String hostname,
-                               CrateInstances crateInstances,
+                               int httpPort,
+                               int transportPort,
+                               String unicastHosts,
                                List<Attribute> attributes) {
         this.execId = UUID.randomUUID().toString();
-        this.hostname = hostname;
         this.configuration = configuration;
+        this.hostname = hostname;
+        this.httpPort = httpPort;
+        this.transportPort = transportPort;
         this.attributes = attributes;
         this.downloadURIs = asList(
                 URI.create(configuration.versionIsDownloadURL() ?
@@ -60,7 +66,7 @@ public class CrateExecutableInfo implements Serializable {
                         String.format("%s/crate-%s.tar.gz", CDN_URL, configuration.version))
         );
         this.nodeNode = String.format("%s-%s", configuration.clusterName, execId);
-        this.unicastHosts = crateInstances.unicastHosts();
+        this.unicastHosts = unicastHosts;
     }
 
     public String nodeName() {
@@ -68,7 +74,7 @@ public class CrateExecutableInfo implements Serializable {
     }
 
     public int transportPort() {
-        return configuration.transportPort;
+        return transportPort;
     }
 
     public List<String> arguments() {
@@ -77,8 +83,8 @@ public class CrateExecutableInfo implements Serializable {
                 "-p",
                 "crate.pid",
                 String.format("-Des.cluster.name=%s", configuration.clusterName),
-                String.format("-Des.http.port=%d", configuration.httpPort),
-                String.format("-Des.transport.tcp.port=%d", configuration.transportPort),
+                String.format("-Des.http.port=%d", httpPort),
+                String.format("-Des.transport.tcp.port=%d", transportPort),
                 String.format("-Des.node.name=%s", nodeNode),
                 String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
                 String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts)
@@ -109,7 +115,7 @@ public class CrateExecutableInfo implements Serializable {
         );
     }
 
-    public Integer httpPort() { return configuration.httpPort; }
+    public Integer httpPort() { return httpPort; }
 
     public List<URI> uris() {
         return downloadURIs;

@@ -72,6 +72,8 @@ public class CrateRestResource {
     public Response clusterIndex(@Context UriInfo uriInfo) {
         final int desired = store.state().desiredInstances().getValue();
         final int running = store.state().crateInstances().size();
+        final int httpPort = store.state().httpPort();
+        final int transportPort = store.state().transportPort();
         final HashMap<String, List<String>> excluded = store.state().excludedSlaves();
         return Response.ok().entity(new GenericAPIResponse() {
             @Override
@@ -90,7 +92,8 @@ public class CrateRestResource {
                             {
                                 put("version", conf.version);
                                 put("name", conf.clusterName);
-                                put("httpPort", conf.httpPort);
+                                put("httpPort", httpPort);
+                                put("transportPort", transportPort);
                                 put("nodeCount", conf.nodeCount);
                             }
                         });

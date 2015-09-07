@@ -5,6 +5,9 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Store http and transport port in Zookeeper state, so they persist in
+    a framework lifetime when using dynamically allocated ports with Marathon
+
 2015/08/08 0.1.0
 ================
 

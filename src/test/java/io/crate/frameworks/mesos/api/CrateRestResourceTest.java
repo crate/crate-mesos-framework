@@ -45,7 +45,10 @@ public class CrateRestResourceTest {
         configuration.version("0.48.0");
         PersistentStateStore mockedStore = mock(PersistentStateStore.class);
         CrateState state = new CrateState();
-        CrateInstance crate1 = new CrateInstance("crate1", "task-1", "0.48.0", 44300, "exec-1", "slave-1");
+        state.httpPort(44200);
+        state.transportPort(44300);
+        CrateInstance crate1 = new CrateInstance("crate1", "task-1", "0.48.0",
+                state.httpPort(), state.transportPort(), "exec-1", "slave-1");
         state.crateInstances().addInstance(crate1);
         when(mockedStore.state()).thenReturn(state);
         resource = new CrateRestResource(mockedStore, configuration);
@@ -68,7 +71,8 @@ public class CrateRestResourceTest {
             {
                 put("version", "0.48.0");
                 put("name", "crate");
-                put("httpPort", 4200);
+                put("httpPort", 44200);
+                put("transportPort", 44300);
                 put("nodeCount", 0);
             }
         });
