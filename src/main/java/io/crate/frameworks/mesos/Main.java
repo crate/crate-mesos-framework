@@ -24,7 +24,6 @@ package io.crate.frameworks.mesos;
 import com.beust.jcommander.JCommander;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
-import com.google.protobuf.ByteString;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
 import org.apache.log4j.BasicConfigurator;
@@ -38,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.core.UriBuilder;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -109,8 +107,7 @@ public class Main {
             if (secret == null) {
                 LOGGER.error("Expecting authentication secret in the environment");
             } else {
-                // TODO verify correctness
-                credential.setSecret(ByteString.copyFrom(secret.getBytes(Charset.defaultCharset())).toStringUtf8());
+                credential.setSecret(secret);
             }
             return Optional.of(credential.build());
         } else {
