@@ -21,7 +21,8 @@
 
 package io.crate.frameworks.mesos;
 
-import org.elasticsearch.monitor.jvm.JvmInfo;
+
+import io.crate.shade.org.elasticsearch.monitor.jvm.JvmInfo;
 
 public class Version {
 

@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Updated Mesos to ``0.28.1`` and Crate client to ``0.54.8``
+
 2015/08/08 0.1.0
 ================
 
