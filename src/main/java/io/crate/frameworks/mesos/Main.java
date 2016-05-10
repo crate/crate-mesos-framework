@@ -109,7 +109,8 @@ public class Main {
             if (secret == null) {
                 LOGGER.error("Expecting authentication secret in the environment");
             } else {
-                credential.setSecret(ByteString.copyFrom(secret.getBytes(Charset.defaultCharset())));
+                // TODO verify correctness
+                credential.setSecret(ByteString.copyFrom(secret.getBytes(Charset.defaultCharset())).toStringUtf8());
             }
             return Optional.of(credential.build());
         } else {
