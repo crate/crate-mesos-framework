@@ -376,6 +376,8 @@ In order to deploy something on Marathon create a json file. For example
         ]
     }
 
+ 
+Note that, if you scheduling crate mesos framework on DCOS using marathon, the value of ``--zookeeper`` must be ``master.mesos:2181``
 
 In order to instruct marathon to deploy the crate framework curl can then be used::
 
