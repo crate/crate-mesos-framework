@@ -82,6 +82,14 @@ public class CrateSchedulerTest {
     }
 
     @Test
+    public void testNodeCountParameter() throws Exception {
+        Configuration conf = new Configuration();
+        conf.nodeCount = 2;
+        CrateScheduler crateScheduler = initScheduler(conf, "xx");
+        assertThat(state.desiredInstances().getValue(), is(2));
+    }
+
+    @Test
     public void testResourceOffersDoesNotSpawnTooManyTasks() throws Exception {
         CrateInstances instances = new CrateInstances();
 
