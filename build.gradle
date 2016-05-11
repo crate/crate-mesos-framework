@@ -5,6 +5,9 @@ plugins {
 apply plugin: 'java'
 apply plugin: 'idea'
 
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
 group = 'io.crate'
 
 ext {
@@ -128,7 +131,7 @@ def jvmTestFlags = ['-ea']
 
 idea {
     project {
-        languageLevel = 'JDK_1_8'
+        languageLevel = 'JDK_1_7'
 
         ipr {
             withXml { provider ->
