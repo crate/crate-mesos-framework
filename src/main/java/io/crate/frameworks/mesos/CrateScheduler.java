@@ -440,17 +440,18 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void disconnected(SchedulerDriver driver) {
-        LOGGER.info("disconnected()");
+        LOGGER.info("disconnected(driver : {})", driver);
     }
 
     @Override
     public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveID) {
-        LOGGER.info("slaveLost()");
+        LOGGER.info("Slave lost slaveId=" + slaveID.getValue());
     }
 
     @Override
     public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
-        LOGGER.info("executorLost()");
+        LOGGER.info("Executor lost: executorId=" + executorID.getValue()
+                + " slaveId=" + slaveID.getValue() + " status=" + i);
     }
 
     @Override
