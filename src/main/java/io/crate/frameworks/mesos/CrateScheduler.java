@@ -133,7 +133,7 @@ public class CrateScheduler implements Scheduler {
             driver.stop();
         }
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         state.frameworkId(frameworkID.getValue());
@@ -155,7 +155,7 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framework. Starting task reconciliation.");
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         crateInstances = state.crateInstances();
@@ -224,7 +224,7 @@ public class CrateScheduler implements Scheduler {
 
     private boolean slaveWithRunningInstance(String slaveId) {
         return stateStore.state().slavesWithInstances().isEmpty() ||
-                    stateStore.state().slavesWithInstances().contains(slaveId);
+                stateStore.state().slavesWithInstances().contains(slaveId);
 
     }
 
@@ -417,7 +417,7 @@ public class CrateScheduler implements Scheduler {
                 stateStore.save();
                 scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
                 break;
-          default:
+            default:
                 LOGGER.info("Switched on none cased data type: {}", data.type());
         }
     }

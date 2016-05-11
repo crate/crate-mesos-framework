@@ -26,6 +26,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
+import io.crate.shade.org.apache.commons.lang3.ObjectUtils;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
@@ -121,10 +122,9 @@ public class Main {
 
         final double frameworkFailoverTimeout = 31536000d; // 60 * 60 * 24 * 365 = 1y
 
-        final String host = System.getenv("MESOS_HOSTNAME");
         final String webUri = UriBuilder.fromPath("/cluster")
                 .scheme("http")
-                .host(host == null ? currentHost() : host)
+                .host(host())
                 .port(configuration.apiPort)
                 .build().toString();
         Protos.FrameworkInfo.Builder frameworkBuilder = Protos.FrameworkInfo.newBuilder()
@@ -170,7 +170,12 @@ public class Main {
         System.exit(status);
     }
 
-    public static String currentHost() {
+    public static String host() {
+        String host = ObjectUtils.firstNonNull(System.getenv("HOST"), System.getenv("MESOS_HOSTNAME"));
+        return host == null ? currentHost() : host;
+    }
+
+    private static String currentHost() {
         String host;
         try {
             host = InetAddress.getLocalHost().getHostName();
