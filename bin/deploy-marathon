@@ -1,4 +1,9 @@
 #!/bin/bash
-./gradlew clean && ./gradlew snapshotRelease && vagrant ssh -c "rm -rf /tmp/crate-* && cp /vagrant/build/libs/crate-mesos-*-SNAPSHOT-*.jar /tmp/crate-mesos.jar"
-curl -s -XPOST http://localhost:8080/v2/apps -d@marathon/crate-marathon.json -H "Content-Type: application/json" | jq .
+PWD=$(pwd)
+./gradlew clean && \
+    ./gradlew snapshotRelease && \
+    cd ./build/libs && \
+    tar -zcf crate-mesos.tar.gz crate-mesos-*.jar && \
+    cd $PWD && \
+    curl -s -XPOST http://localhost:8080/v2/apps -d@marathon/local.json -H "Content-Type: application/json" | jq .
 
