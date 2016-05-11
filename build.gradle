@@ -10,6 +10,10 @@ targetCompatibility = 1.7
 
 group = 'io.crate'
 
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.13'
+}
+
 ext {
     // crate
     crateClientVersion="0.54.8"
