@@ -257,9 +257,10 @@ public class CrateExecutor implements Executor {
             driver.sendFrameworkMessage(msg.toStream());
             return false;
         }
-        boolean success = true;   // todo:  this is always true... what is intended?
+        boolean success = true;
         for (URI uri : info.uris()) {
-            if (!fetchAndExtractUri(uri)) {
+            success = fetchAndExtractUri(uri);
+            if (!success) {
                 break;
             }
         }
@@ -304,8 +305,7 @@ public class CrateExecutor implements Executor {
 
     private boolean extractFile(File tmpFile) {
         LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), workingDirectory.getAbsolutePath());
-        boolean success = true;       // todo:  this is always true
-
+        boolean success = true;
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{
