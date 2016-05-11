@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Fix: ``--crate-node-count`` command line argument was ignored
+
   - Crate executable now uses correct Java executable provided by fetch URI
 
   - Updated Mesos to ``0.28.1`` and Crate client to ``0.54.8``

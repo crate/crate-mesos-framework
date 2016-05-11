@@ -150,6 +150,7 @@ public class CrateScheduler implements Scheduler {
 
         }
 
+        state.desiredInstances(configuration.nodeCount);
     }
 
     @Override
