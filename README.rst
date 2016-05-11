@@ -376,6 +376,13 @@ In order to deploy something on Marathon create a json file. For example
         ]
     }
 
+ 
+As it is shown in the list of parameters above, default value for ``--zookeeper`` parameter is ``localhost:2181``,
+but in production cases in must be list of hostnames where you zookeeper cluster installed.
+For instance: if your zookeeper nodes are ``mesos-master-1, mesos-master-2, mesos-master-3`` 
+then the paramter and the values will look like this : ``mesosmesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181``.
+For DCOS cluster, ``--zookeeper`` parameter has special value, that is, if you scheduling crate mesos framework 
+on DCOS using marathon, the value of ``--zookeeper`` must be ``master.mesos:2181``.
 
 In order to instruct marathon to deploy the crate framework curl can then be used::
 
