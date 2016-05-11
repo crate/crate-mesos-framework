@@ -243,7 +243,7 @@ public class CrateScheduler implements Scheduler {
                                 .build()
                 ))
                 .setValue(
-                        String.format("env && $(pwd)/jre*/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
+                        String.format("env && $(pwd)/jre/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
                 )
                 .build();
         return Protos.ExecutorInfo.newBuilder()

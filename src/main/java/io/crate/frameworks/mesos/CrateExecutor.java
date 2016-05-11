@@ -428,15 +428,11 @@ public class CrateExecutor implements Executor {
 
     public class Task {
 
-        private final String env;
-        private final String cmd;
         public CrateExecutableInfo executableInfo;
         public Process process = null;
 
         Task(CrateExecutableInfo info) {
             this.executableInfo = info;
-            this.cmd = cmd();
-            this.env = env();
 
         }
 
@@ -446,7 +442,8 @@ public class CrateExecutor implements Executor {
             for (Environment.Variable variable : env) {
                 vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
             }
-            vars.add("PATH=$(echo $(pwd)/jre*/bin):$PATH");
+            // The Crate executable is using the Java executable from within the JAVA_HOME folder.
+            vars.add("JAVA_HOME=$(pwd)/jre");
             return Joiner.on(" ").join(vars);
         }
 
@@ -455,7 +452,7 @@ public class CrateExecutor implements Executor {
         }
 
         public Process run() throws IOException {
-            final String runCmd = String.format("%s %s", task.env, task.cmd);
+            final String runCmd = String.format("%s %s", env(), cmd());
             LOGGER.debug("Launch task: {}", runCmd);
             process = Runtime.getRuntime().exec(
                     new String[]{"sh", "-c", runCmd},
