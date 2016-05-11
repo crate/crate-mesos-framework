@@ -181,11 +181,11 @@ Crate uses by default a the ports ``4200`` and ``4300``.
 In order to get offers you need to add the resource reservation for a port range that includes
 these ports, e.g. writing it into the resources file::
 
-    echo 'ports(*)[31000-31099, 31101-32000, 4200-4399]' > /etc/mesos-slave/resources
+    echo 'ports(*)[31000-31099, 31101-32000, 4000-4999]' > /etc/mesos-slave/resources
 
 or starting the slave with the option::
 
-    --resources=ports(*)[31000-31099, 31101-32000, 4200-4399]
+    --resources=ports(*)[31000-31099, 31101-32000, 4000-4999]
 
 Then restart the slave and clean the old slave state if necessary (``rm -f /tmp/mesos/meta/slaves/latest``).
 
@@ -339,9 +339,30 @@ In order to deploy something on Marathon create a json file. For example
         "id": "crate-demo",
         "instances": 1,
         "cpus": 0.25,
-        "mem": 50,
-        "ports": [4040],
-        "cmd": "java -Djava.library.path=/usr/local/lib -jar /tmp/crate-mesos-0.1.0.jar --zookeeper mesos-master-1:2181,mesos-master-2:2181,mesos-master-3:2181 --crate-cluster-name crate-demo --crate-version 0.47.7 --api-port $PORT0",
+        "mem": 128,
+        "portDefinitions": [
+            {
+                "port": 4040,
+                "protocol": "tcp",
+                "name": "api"
+            }
+        ],
+        "requirePorts": true,
+        "env": {
+            "CRATE_CLUSTER_NAME": "dev-local",
+            "CRATE_VERSION": "0.54.8",
+            "CRATE_HTTP_PORT": "4200",
+            "CRATE_TRANSPORT_PORT": "4300"
+        },
+        "fetch": [
+            {
+                "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
+                "extract": true,
+                "executable": false,
+                "cache": false
+            }
+        ],
+        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar /tmp/crate-mesos-0.1.0.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT",
         "healthChecks": [
             {
                 "protocol": "HTTP",
