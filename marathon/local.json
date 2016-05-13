@@ -5,7 +5,7 @@
     "mem": 128,
     "portDefinitions": [
         {
-            "port": 4242,
+            "port": 4040,
             "protocol": "tcp",
             "name": "api"
         }
@@ -13,9 +13,10 @@
     "requirePorts": true,
     "env": {
         "CRATE_CLUSTER_NAME": "dev-local",
-        "CRATE_VERSION": "0.54.8",
+        "CRATE_VERSION": "0.54.9",
         "CRATE_HTTP_PORT": "4200",
-        "CRATE_TRANSPORT_PORT": "4300"
+        "CRATE_TRANSPORT_PORT": "4300",
+        "MESOS_MASTER": "192.168.10.100"
     },
     "fetch": [
         {
@@ -31,7 +32,7 @@
             "cache": false
         }
     ],
-    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-*.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT",
+    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-*.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $MESOS_MASTER:2181 -Des.network.publish_host=_enp0s8:ipv4_",
     "healthChecks": [
         {
             "protocol": "HTTP",

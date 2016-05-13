@@ -1,2 +1,2 @@
 #!/bin/bash
-vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $*"
+vagrant ssh mesos-master -c "LIBPROCESS_IP=192.168.10.100 java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $*"
