@@ -1,9 +1,8 @@
 #!/bin/bash
 PWD=$(pwd)
-./gradlew clean && \
-    ./gradlew snapshotRelease && \
-    cd ./build/libs && \
-    tar -zcf crate-mesos.tar.gz crate-mesos-*.jar && \
-    cd $PWD && \
-    curl -s -XPOST http://localhost:8080/v2/apps -d@marathon/local.json -H "Content-Type: application/json" | jq .
+MESOS_MASTER="192.168.10.100"
+echo "Working directory: $PWD"
+./gradlew clean snapshotRelease
+cd ./build/libs && tar -zcf crate-mesos.tar.gz crate-mesos-*.jar && cd $PWD
+curl -sXPOST "http://$MESOS_MASTER:8080/v2/apps" -d@marathon/local.json -H "Content-Type: application/json" | jq .
 
