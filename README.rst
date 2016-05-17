@@ -7,7 +7,7 @@ This is an integration framework which allows running and managing Crate_ databa
 .. warning::
 
     **DISCLAIMER**
-    
+
     *This is a very early version of Crate-Mesos-Framework;
     document, code behavior, and anything else may change
     without notice and/or break older installations!*
@@ -29,26 +29,34 @@ is launched using the command line.
 In both cases the ``Main`` method requires a ``--crate-version`` argument,
 which is the Crate version that should be used. The version number must be
 in the format ``x.y.z``.
-Current Crate version is ``0.47.8``.
+Current stable Crate version is ``0.54.9``.
 
 Alternatively you can specify a full download URL for Crate. In that case
 the URL needs to be in the format: ``http(s)://<HOST><PATH>/crate-<X>.<Y>.<Z><SUFFIX>.tar.gz``
 
 Open Files
 ==========
-Depending on the size of your installation, Crate can open a lot of files. You can check the number of open files with ``ulimit -n``,
-but it can depend on your host operating system. How to increase the number is dependent for your operating system. 
-For instance, in RHEL6.x, you can place ``crate.conf`` file containing ``crate soft nofile 65535`` and ``crate hard nofile 65535`` 
-under ``/etc/security/limit.d``. This will set limit of number of open files for user ``crate`` to 65535. Furthermore it is recommended 
-to set the memlock limit (the maximum locked-in-memory address space) to unlimited. You can do it by adding 
-``crate hard memlock unlimited`` and  ``crate soft memlock unlimited`` lines to the ``crate.conf`` file mentioned above for RHEL6.x, 
-but please take into account that, it may differ in other operating systems.
+
+Depending on the size of your installation, Crate can open a lot of files.
+You can check the number of open files with ``ulimit -n``, but it can depend
+on your host operating system. How to increase the number is dependent for your
+operating system. For instance, in RHEL6.x, you can place ``crate.conf`` file
+containing ``crate soft nofile 65535`` and ``crate hard nofile 65535``
+under ``/etc/security/limit.d``. This will set limit of number of open files
+for user ``crate`` to 65535. Furthermore it is recommended
+to set the memlock limit (the maximum locked-in-memory address space) to
+unlimited. You can do it by adding ``crate hard memlock unlimited`` and
+``crate soft memlock unlimited`` lines to the ``crate.conf`` file mentioned
+above for RHEL6.x, but please take into account that, it may differ in other
+operating systems.
 
 Vagrant Setup
 =============
-The ``Vagrantfile`` in this repository can be used for easy installation and testing. If you want to setup a mesos cluster with 3 nodes, you have to 
-run ``vagrant up`` in repository root directory and add hostnames and IP addresses of vagrant boxes which are ``mesos-slave-1 192.168.10.101``, 
-``mesos-slave-2   192.168.10.102`` and ``mesos-slave-3 192.168.10.103`` to the ``/etc/hosts`` configuration file of the host machine. 
+
+The ``Vagrantfile`` in this repository can be used for easy installation and
+testing. If you want to setup a Mesos cluster with 3 nodes, you can simply run
+``vagrant up`` and update your ``/etc/hosts`` file with the the IPs/hostnames
+of the vagrant boxes. For full setup, see ``DEVELOP.rst``.
 
 
 Execute via Command Line
@@ -60,7 +68,7 @@ Execute via Command Line
 
 
 Launch via Marathon
---------------------
+-------------------
 
 Create a Marathon configuration file::
 
@@ -89,7 +97,8 @@ And submit it to a running Marathon master::
 
     curl -s -XPOST http://localhost:8080/v2/apps -d@CrateFramework.json -H "Content-Type: application/json"
 
-There is a template file for ``marathon.json`` under marathon directory. You can copy it by ``cp marathon/marathon.json.template marathon/marathon.json`` 
+There is a template file for ``marathon.json`` under marathon directory.
+You can copy it by ``cp marathon/marathon.json.template marathon/marathon.json``
 and modify the necessary parameters
 
 
@@ -232,25 +241,86 @@ You can force shut down the cluster::
 Resizing a Cluster
 ==================
 
+A Crate cluster can be resized by changing the number of instances using the
+Framework API (see `API Usage`_).
 
-A Crate cluster can be resized by changing the number of instances using the Framework API (see `API Usage`_).
+Increasing the number of instances is always possible, unless the number of
+desired instances is greater than the number of slaves. Each instance of the
+Crate Framework enforces the contraint that there is only one Crate instance
+running on each host.
 
-Increasing the number of instances is always possible, unless the number of desired instances is
-greater than the number of slaves. Each instance of the Crate Framework enforces the contraint
-that there is only one Crate instance prunning on each host.
+The Crate Framework shuts down Crate instances gracefully (see `Configuration`_
+and `Zero Downtime Upgrade`_) when decreasing the number of instances in a
+cluster.
 
-The Crate Framework shuts down Crate instances gracefully (see `Configuration`_ and `Zero Downtime Upgrade`_)
-when decreasing the number of instances in a cluster.
+If you want to ensure green health (full data + replica availability), you need
+to change the ``cluster.graceful_stop.min_availability`` setting to ``full``.
+This option will cause the Crate node to try move all shards off the node
+before shutting down. If this is not possible, the node will **not** shut down
+and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate
+Framework will continue to try to shut down the node again. Such a state is
+indicated by the Framework API when the number of running instances does not
+approach the number of desired instances when scaling down. Please keep in mind
+that the cluster can not be resized to zero instances.
 
-If you want to ensure green health (full data + replica availability), you need to change the
-``cluster.graceful_stop.min_availability`` setting to ``full``.
-This option will cause the Crate node to try move all shards off the node before shutting down. If this is not possible,
-the node will **not** shut down and run into the timeout (``cluster.graceful_stop.timeout``). However the Crate Framework
-will continue to try to shut down the node again. Such a state is indicated by the Framework API when the number of running
-instances does not approach the number of desired instances when scaling down. Please keep in mind that the cluster can not
-be resized to zero instances.
+In order to shut down the a cluster you need to use the ``/cluster/shutdown``
+API endpoint.
 
-In order to shut down the a cluster you need to use the ``/cluster/shutdown`` API endpoint.
+Cluster Settings
+----------------
+
+When resizing a cluster the Crate Framework automatically applies certain
+important cluster settings. These settings are:
+
+* ``discovery.zen.minimum_master_nodes``
+* ``gateway.recover_after_nodes``
+* ``gateway.expected_nodes``
+
+Since only the ``minumum_master_nodes`` setting is a runtime settings, there
+are various limitations to how theses settings are applied. **These limitations
+should be carefully considered when running a Crate cluster!**
+
+1. The three settings are applied on node start using the ``-Des.`` command
+   line arguments. This means that when you resize a cluster from 0 instances
+   to e.g. 5 instances, the executor of the Crate Framework will launch Crate
+   using these arguments among others::
+
+       -Des.discovery.zen.minimum_master_nodes=3 -Des.gateway.recover_after_nodes=3 -Des.gateway.expected_nodes=5
+
+   This will prevent the cluster from a "split brain" and sets the correct
+   gateway settings for recovery.
+
+2. However, when resizing a cluster from 0 instances to 1 instance first, the
+   same rules apply and the executor launches Crate with the following
+   arguments::
+
+       -Des.discovery.zen.minimum_master_nodes=1 -Des.gateway.recover_after_nodes=1 -Des.gateway.expected_nodes=1
+
+   If you now resize to 5 instances the Framework first tries to update the
+   ``minimum_master_nodes`` setting of the cluster to the new quorum of the
+   expected nodes (in this case 5). However, since it is not possible to set
+   this setting to a value greater than the number of nodes in the (existing)
+   cluster, the cluster setting update will fail (silently), still, the newly
+   added nodes are started with the updated arguments::
+
+       -Des.discovery.zen.minimum_master_nodes=3 -Des.gateway.recover_after_nodes=3 -Des.gateway.expected_nodes=5
+
+   Note, that starting the instances with these parameters will not update the
+   cluster setting itself! **You will have to update it manually**, e.g. using
+   ``crash`` or via the Admin UI.
+
+3. When scaling down the Crate Framework also updates the
+   ``minimum_master_nodes`` setting of the cluster before shutting down the
+   required nodes to reach the new amount of desired instances. This means that
+   there is a small window where the setting is "incorrect". If you need to
+   scale down your cluster big times, you should do it in chunks!
+
+4. Since the ``gateway.*`` settings are **not** settable at runtime, the value
+   applied at first start of the cluster cannot be changed any more, even when
+   scaling down. This means that e.g. the value of ``expected_nodes`` is still
+   5 (from the initial cluster start) even though you've been resizing the
+   cluster to 3 nodes already.
+
 
 Cluster Upgrade
 ===============

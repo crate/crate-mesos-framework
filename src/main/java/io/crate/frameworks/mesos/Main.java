@@ -171,8 +171,10 @@ public class Main {
     }
 
     public static String host() {
-        String host = ObjectUtils.firstNonNull(System.getenv("HOST"), System.getenv("MESOS_HOSTNAME"));
-        return host == null ? currentHost() : host;
+        return ObjectUtils.firstNonNull(System.getenv("LIBPROCESS_IP"),
+                System.getenv("HOST"),
+                System.getenv("MESOS_HOSTNAME"),
+                currentHost());
     }
 
     private static String currentHost() {

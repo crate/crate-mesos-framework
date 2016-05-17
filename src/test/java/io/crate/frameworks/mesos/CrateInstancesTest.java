@@ -98,4 +98,22 @@ public class CrateInstancesTest {
         cluster.removeTask("2");
         assertEquals(new HashSet<String>(), cluster.hosts());
     }
+
+    @Test
+    public void testCalculateQuorum() throws Exception {
+        assertEquals(1, CrateInstances.calculateQuorum(1));
+        assertEquals(2, CrateInstances.calculateQuorum(2));
+        assertEquals(2, CrateInstances.calculateQuorum(3));
+        assertEquals(3, CrateInstances.calculateQuorum(4));
+        assertEquals(3, CrateInstances.calculateQuorum(5));
+        assertEquals(4, CrateInstances.calculateQuorum(6));
+        assertEquals(4, CrateInstances.calculateQuorum(7));
+        assertEquals(5, CrateInstances.calculateQuorum(8));
+        assertEquals(5, CrateInstances.calculateQuorum(9));
+        assertEquals(6, CrateInstances.calculateQuorum(10));
+        // the quorum must be greater than half of the expected cluster size
+        for (int i = 0; i < 1000; i++) {
+            assertTrue(CrateInstances.calculateQuorum(i) > i / 2.0f);
+        }
+    }
 }

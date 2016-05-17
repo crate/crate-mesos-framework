@@ -49,7 +49,7 @@ public class CrateExecutableInfoTest {
                         .setText(Protos.Value.Text.newBuilder().setValue("a").build())
                         .build()
         );
-        CrateExecutableInfo info = new CrateExecutableInfo(configuration, "host1", instances, attr);
+        CrateExecutableInfo info = new CrateExecutableInfo(configuration, "host1", instances, attr, 1);
         byte[] serializedInfo = info.toStream();
         CrateExecutableInfo newInfo = CrateExecutableInfo.fromStream(serializedInfo);
         Protos.Environment.Variable heap = Protos.Environment.Variable.newBuilder()
@@ -71,11 +71,26 @@ public class CrateExecutableInfoTest {
         CrateInstances instances = new CrateInstances();
         instances.addInstance(new CrateInstance("runningHost", "1", "0.47.7", 4350, "exec-1", "slave-1"));
         CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
-                ImmutableList.<Protos.Attribute>of());
+                ImmutableList.<Protos.Attribute>of(), 1);
         List<String> args = host1.arguments();
 
         assertThat(args, Matchers.hasItem("-Des.transport.tcp.port=4250"));
         assertThat(args, Matchers.hasItem("-Des.discovery.zen.ping.unicast.hosts=runningHost:4350"));
+    }
+
+    @Test
+    public void testClusterSettingsAreSetCorrectly() throws Exception {
+        Configuration configuration = new Configuration();
+
+        CrateInstances instances = new CrateInstances();
+        instances.addInstance(new CrateInstance("runningHost", "1", "0.54.8", 4300, "exec-1", "slave-1"));
+        CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
+                ImmutableList.<Protos.Attribute>of(), 3);
+        List<String> args = host1.arguments();
+
+        assertThat(args, Matchers.hasItem("-Des.discovery.zen.minimum_master_nodes=2"));
+        assertThat(args, Matchers.hasItem("-Des.gateway.recover_after_nodes=2"));
+        assertThat(args, Matchers.hasItem("-Des.gateway.expected_nodes=3"));
     }
 
     @Test
@@ -89,7 +104,7 @@ public class CrateExecutableInfoTest {
                                 .setName("zone")
                                 .setText(Protos.Value.Text.newBuilder().setValue("a").build())
                                 .build()
-                ));
+                ), 1);
         assertThat(host1.arguments(), Matchers.hasItem("-Des.node.mesos_zone=a"));
     }
 
@@ -99,7 +114,7 @@ public class CrateExecutableInfoTest {
         configuration.crateArgs(Arrays.asList("-Des.foo=x"));
         CrateInstances instances = new CrateInstances();
         CrateExecutableInfo host1 = new CrateExecutableInfo(configuration, "host1", instances,
-                ImmutableList.<Protos.Attribute>of());
+                ImmutableList.<Protos.Attribute>of(), 1);
 
         assertThat(host1.arguments(), Matchers.hasItem("-Des.foo=x"));
     }

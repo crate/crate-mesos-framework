@@ -5,6 +5,9 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Set ``gateway`` and ``minimum_master_nodes`` settings when resizing the
+    Crate cluster
+
   - Crate executable now uses correct Java executable provided by fetch URI
 
 2015/08/08 0.1.0
