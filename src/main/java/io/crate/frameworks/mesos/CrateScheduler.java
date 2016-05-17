@@ -22,13 +22,14 @@
 package io.crate.frameworks.mesos;
 
 import com.google.protobuf.ByteString;
+import io.crate.action.sql.SQLActionException;
+import io.crate.action.sql.SQLRequest;
+import io.crate.client.CrateClient;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
-import org.apache.mesos.MesosNativeLibrary;
-import org.apache.mesos.Protos;
-import org.apache.mesos.Scheduler;
-import org.apache.mesos.SchedulerDriver;
+import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.apache.mesos.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,10 +170,11 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
         if (!reconcileTasks.isEmpty()) {
+            LOGGER.info("reconcileTasks size={}", reconcileTasks.size());
             declineAllOffers(driver, offers);
+            LOGGER.info("declined offers = {}", offers);
             return;
         }
-
         CrateState state = stateStore.state();
         int required = state.missingInstances();
         if (required == 0) {
@@ -275,7 +277,8 @@ public class CrateScheduler implements Scheduler {
                 configuration,
                 offer.getHostname(),
                 crateInstances,
-                attributes
+                attributes,
+                stateStore.state().desiredInstances().getValue()
         );
     }
 
@@ -354,7 +357,12 @@ public class CrateScheduler implements Scheduler {
                 break;
             case TASK_STAGING:
             case TASK_STARTING:
-                LOGGER.debug("waiting ...");
+                // Crate node is about to start.
+                LOGGER.debug("Waiting for new node to start ...");
+                break;
+            case TASK_KILLING:
+                // Crate node is about to be killed.
+                LOGGER.debug("Waiting for node to stop ...");
                 break;
             case TASK_LOST:
             case TASK_FAILED:
@@ -378,11 +386,13 @@ public class CrateScheduler implements Scheduler {
         int instancesMissing = stateStore.state().missingInstances();
         if (instancesMissing != 0) {
             LOGGER.debug("Resize cluster. {} missing instances.", instancesMissing);
-        }
-        if (instancesMissing > 0) {
-            requestMoreResources(driver, instancesMissing);
-        } else if (instancesMissing < 0) {
-            killInstances(driver, instancesMissing * -1);
+            if (instancesMissing > 0) {
+                requestMoreResources(driver, instancesMissing);
+            } else if (instancesMissing < 0) {
+                killInstances(driver, instancesMissing * -1);
+            }
+        } else {
+            LOGGER.trace("No missing instances, nothing to do.");
         }
         stateStore.save();
     }

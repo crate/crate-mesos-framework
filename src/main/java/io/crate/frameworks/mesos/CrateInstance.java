@@ -83,6 +83,10 @@ public class CrateInstance implements Serializable {
 
     public String slaveID() { return slaveID; }
 
+    public String connectionString() {
+        return String.format("%s:%d", hostname, transportPort);
+    }
+
     @Override
     public String toString() {
         return "CrateInstance{" +

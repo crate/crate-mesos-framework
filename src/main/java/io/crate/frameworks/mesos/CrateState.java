@@ -94,7 +94,6 @@ public class CrateState implements Serializable {
         return desiredInstances().getValue() - crateInstances().size();
     }
 
-
     public boolean addSlaveIdToExcludeList(String reason, String slaveId) {
         if (!excludedSlaves.containsKey(reason)) {
             excludedSlaves.put(reason, new ArrayList<String>());

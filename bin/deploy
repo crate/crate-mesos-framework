@@ -1,4 +1,4 @@
 #!/bin/bash
 ./gradlew clean && \
     ./gradlew snapshotRelease && \
-	vagrant ssh mesos-master -c "LIBPROCESS_IP=192.168.10.100 java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $* --zookeeper 192.168.10.100:2181 -Des.network.publish_host=_enp0s8:ipv4_"
+	vagrant ssh mesos-master -c "LIBPROCESS_IP=192.168.10.100 java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar $* --zookeeper 192.168.10.100:2181 -Des.network.publish_host=_enp0s8:ipv4_"
