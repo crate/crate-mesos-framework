@@ -22,12 +22,16 @@
 package io.crate.frameworks.mesos.api;
 
 import com.google.common.base.Splitter;
+import io.crate.action.sql.SQLActionException;
+import io.crate.action.sql.SQLRequest;
 import io.crate.action.sql.SQLResponse;
 import io.crate.client.CrateClient;
+import io.crate.frameworks.mesos.CrateInstances;
 import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.Version;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,11 +54,50 @@ public class CrateRestResource {
         this.conf = conf;
     }
 
+    @Nullable
     private CrateClient client() {
         if (store.state().crateInstances().size() > 0) {
-            return new CrateClient(store.state().crateInstances().unicastHosts());
+            return new CrateClient(store.state().crateInstances().connectionString());
         }
         return null;
+    }
+
+    private static int getMaxReplicas(CrateClient client) {
+        int maxReplicas = 0;
+        try {
+            SQLResponse response = client.sql("SELECT number_of_replicas FROM information_schema.tables GROUP BY number_of_replicas").actionGet();
+            for (Object[] objects : response.rows()) {
+                List<String> replicas = Splitter.on("-").splitToList((String) objects[0]);
+                String val = replicas.get(replicas.size()-1);
+                if (replicas.size() == 2 && val.equals("all")) {
+                    val = replicas.get(0);
+                }
+                maxReplicas = Math.max(maxReplicas, Integer.parseInt(val));
+            }
+        } catch (NoNodeAvailableException e) {
+            // since we do not have a crate node to connect to we can accept the request to start up / shut down nodes.
+            LOGGER.error("No Crate node available.", e);
+        }
+        return maxReplicas;
+    }
+
+    /**
+     * Try to set the value of a specific transient cluster setting.
+     * @param client An instantiated Crate client instance.
+     * @param setting The full qualified setting name.
+     * @param value The new value of the setting.
+     */
+    private void setClusterSetting(CrateClient client, String setting, Object value) {
+        LOGGER.info("SET {} = {}", setting, value);
+        SQLRequest request = new SQLRequest(
+                String.format("SET GLOBAL TRANSIENT \"%s\" = ?", setting),
+                new Object[]{ value }
+        );
+        try {
+            client.sql(request).actionGet();
+        } catch (SQLActionException | NoNodeAvailableException e) {
+            LOGGER.warn("An error occurred while trying to set setting.", e);
+        }
     }
 
     @GET
@@ -118,7 +161,7 @@ public class CrateRestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response clusterResize(final ClusterResizeRequest data) {
         int desired = data.getInstances();
-        if(desired == 0) {
+        if (desired == 0) {
             return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
                 @Override
                 public int getStatus() {
@@ -131,36 +174,28 @@ public class CrateRestResource {
             }).build();
         }
         CrateClient client = client();
-        if (desired < store.state().crateInstances().size() && client != null) {
-            int maxReplicas = 0;
-            try {
-                SQLResponse response = client.sql("select number_of_replicas from information_schema.tables group by number_of_replicas").actionGet();
-                for (Object[] objects : response.rows()) {
-                    List<String> replicas = Splitter.on("-").splitToList((String) objects[0]);
-                    String val = replicas.get(replicas.size()-1);
-                    if (replicas.size() == 2 && val.equals("all")) {
-                        val = replicas.get(0);
-                    }
-                    maxReplicas = Math.max(maxReplicas, Integer.parseInt(val));
+        if (client != null) {
+            if (desired < store.state().crateInstances().size()) {
+                int maxReplicas = getMaxReplicas(client);
+                LOGGER.debug("max replicas = {} desired instances = {}", maxReplicas, desired);
+                if (maxReplicas > 0 && desired < maxReplicas + 1) {
+                    client.close();
+                    return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
+                        @Override
+                        public int getStatus() {
+                            return Response.Status.FORBIDDEN.getStatusCode();
+                        }
+                        @Override
+                        public Object getMessage() {
+                            return "Could not change the number of instances. The number of desired instances is lower than the number of replicas + 1.";
+                        }
+                    }).build();
                 }
-            } catch (NoNodeAvailableException e) {
-                // since we do not have a crate node to connect to we can accept the request to start up / shut down nodes.
-                LOGGER.error("No Crate node available.", e);
             }
-            LOGGER.debug("max replicas = {} desired instances = {}", maxReplicas, desired);
+            int quorum = CrateInstances.calculateQuorum(desired);
+            LOGGER.debug("update cluster settings: desired={} quorum={}", desired, quorum);
+            setClusterSetting(client, "discovery.zen.minimum_master_nodes", quorum);
             client.close();
-            if (maxReplicas > 0 && desired < maxReplicas + 1) {
-                return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
-                    @Override
-                    public int getStatus() {
-                        return Response.Status.FORBIDDEN.getStatusCode();
-                    }
-                    @Override
-                    public Object getMessage() {
-                        return "Could not change the number of instances. The number of desired instances is lower than the number of replicas + 1.";
-                    }
-                }).build();
-            }
         }
         store.state().desiredInstances(desired);
         return Response.ok(new GenericAPIResponse() {}).build();
@@ -172,6 +207,5 @@ public class CrateRestResource {
         store.state().desiredInstances(0);
         return Response.ok(new GenericAPIResponse() {}).build();
     }
-
 }
 

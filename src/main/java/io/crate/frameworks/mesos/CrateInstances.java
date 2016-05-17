@@ -43,10 +43,32 @@ public class CrateInstances implements Serializable, Iterable<CrateInstance> {
 
     public String unicastHosts() {
         List<String> hosts = new ArrayList<>(instances.size());
-        for (CrateInstance crateInstance : instances) {
-            hosts.add(String.format("%s:%s", crateInstance.hostname(), crateInstance.transportPort()));
+        for (CrateInstance instance : instances) {
+            hosts.add(instance.connectionString());
         }
         return Joiner.on(",").join(hosts);
+    }
+
+    public String connectionString() {
+        List<String> hosts = new ArrayList<>();
+        for (CrateInstance instance : runningInstances()) {
+            hosts.add(instance.connectionString());
+        }
+        return Joiner.on(",").join(hosts);
+    }
+
+    public static int calculateQuorum(int expectedNodes) {
+        return (int) Math.ceil((expectedNodes + 1.0f) / 2.0f);
+    }
+
+    public Set<CrateInstance> runningInstances() {
+        HashSet<CrateInstance> running = new HashSet<>();
+        for (CrateInstance instance : instances) {
+            if (instance.state() == CrateInstance.State.RUNNING) {
+                running.add(instance);
+            }
+        }
+        return running;
     }
 
     public Set<String> hosts() {

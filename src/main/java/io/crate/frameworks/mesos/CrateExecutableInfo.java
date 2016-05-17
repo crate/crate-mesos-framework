@@ -45,11 +45,13 @@ public class CrateExecutableInfo implements Serializable {
     private final String execId;
     private final Configuration configuration;
     private final List<Attribute> attributes;
+    private final int numExpectedNodes;
 
     public CrateExecutableInfo(Configuration configuration,
                                String hostname,
                                CrateInstances crateInstances,
-                               List<Attribute> attributes) {
+                               List<Attribute> attributes,
+                               int numExpectedNodes) {
         this.execId = UUID.randomUUID().toString();
         this.hostname = hostname;
         this.configuration = configuration;
@@ -61,6 +63,7 @@ public class CrateExecutableInfo implements Serializable {
         );
         this.nodeNode = String.format("%s-%s", configuration.clusterName, execId);
         this.unicastHosts = crateInstances.unicastHosts();
+        this.numExpectedNodes = numExpectedNodes;
     }
 
     public String nodeName() {
@@ -72,6 +75,7 @@ public class CrateExecutableInfo implements Serializable {
     }
 
     public List<String> arguments() {
+        int minimumMasterNodes = CrateInstances.calculateQuorum(numExpectedNodes);
         List<String> args = new ArrayList<>(asList(
                 "crate-*/bin/crate",
                 "-p",
@@ -81,7 +85,10 @@ public class CrateExecutableInfo implements Serializable {
                 String.format("-Des.transport.tcp.port=%d", configuration.transportPort),
                 String.format("-Des.node.name=%s", nodeNode),
                 String.format("-Des.discovery.zen.ping.multicast.enabled=%s", "false"),
-                String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts)
+                String.format("-Des.discovery.zen.ping.unicast.hosts=%s", unicastHosts),
+                String.format("-Des.discovery.zen.minimum_master_nodes=%d", minimumMasterNodes),
+                String.format("-Des.gateway.recover_after_nodes=%d", minimumMasterNodes),
+                String.format("-Des.gateway.expected_nodes=%d", numExpectedNodes)
         ));
         if (configuration.dataPath != null) {
             args.add(String.format("-Des.path.data=%s", configuration.dataPath));
