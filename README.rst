@@ -73,6 +73,9 @@ And submit it to a running Marathon master::
 
     curl -s -XPOST http://localhost:8080/v2/apps -d@CrateFramework.json -H "Content-Type: application/json"
 
+There is a template file for ``marathon.json`` under marathon directory. You can copy it by ``cp marathon/marathon.json.template marathon/marathon.json`` 
+and modify the necessary parameters
+
 
 Command Line Options
 ====================
