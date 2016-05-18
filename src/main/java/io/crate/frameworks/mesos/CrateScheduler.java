@@ -133,7 +133,7 @@ public class CrateScheduler implements Scheduler {
             driver.stop();
         }
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         state.frameworkId(frameworkID.getValue());
@@ -150,12 +150,13 @@ public class CrateScheduler implements Scheduler {
 
         }
 
+        state.desiredInstances(configuration.nodeCount);
     }
 
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framework. Starting task reconciliation.");
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         crateInstances = state.crateInstances();
@@ -224,7 +225,7 @@ public class CrateScheduler implements Scheduler {
 
     private boolean slaveWithRunningInstance(String slaveId) {
         return stateStore.state().slavesWithInstances().isEmpty() ||
-                    stateStore.state().slavesWithInstances().contains(slaveId);
+                stateStore.state().slavesWithInstances().contains(slaveId);
 
     }
 
@@ -243,7 +244,7 @@ public class CrateScheduler implements Scheduler {
                                 .build()
                 ))
                 .setValue(
-                        String.format("env && $(pwd)/jre*/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
+                        String.format("env && $(pwd)/jre/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
                 )
                 .build();
         return Protos.ExecutorInfo.newBuilder()
@@ -417,7 +418,7 @@ public class CrateScheduler implements Scheduler {
                 stateStore.save();
                 scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
                 break;
-          default:
+            default:
                 LOGGER.info("Switched on none cased data type: {}", data.type());
         }
     }
@@ -440,17 +441,18 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void disconnected(SchedulerDriver driver) {
-        LOGGER.info("disconnected()");
+        LOGGER.info("disconnected(driver : {})", driver);
     }
 
     @Override
     public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveID) {
-        LOGGER.info("slaveLost()");
+        LOGGER.info("Slave lost slaveId=" + slaveID.getValue());
     }
 
     @Override
     public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
-        LOGGER.info("executorLost()");
+        LOGGER.info("Executor lost: executorId=" + executorID.getValue()
+                + " slaveId=" + slaveID.getValue() + " status=" + i);
     }
 
     @Override

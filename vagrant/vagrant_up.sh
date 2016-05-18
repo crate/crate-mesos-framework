@@ -1,9 +1,13 @@
 #!/bin/bash
 
+MESOS_VERSION="0.28.1"
+ZOOKEEPER_VERSION="3.4.6"
+MARATHON_VERSION="1.1.1"
+
 rpm -Uvh http://repos.mesosphere.io/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm
-yum -y install mesos
-yum -y install mesosphere-zookeeper
-yum -y install marathon
+yum -y install "mesos-$MESOS_VERSION"
+yum -y install "mesosphere-zookeeper-$ZOOKEEPER_VERSION"
+yum -y install "marathon-$MARATHON_VERSION"
 yum -y install /usr/bin/dig
 yum -y install cyrus-sasl
 yum -y install cyrus-sasl-md5

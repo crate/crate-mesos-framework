@@ -27,7 +27,7 @@ import io.crate.client.CrateClient;
 import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.Version;
 import io.crate.frameworks.mesos.config.Configuration;
-import org.elasticsearch.client.transport.NoNodeAvailableException;
+import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

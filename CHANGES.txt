@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Crate executable now uses correct Java executable provided by fetch URI
+
 2015/08/08 0.1.0
 ================
 
