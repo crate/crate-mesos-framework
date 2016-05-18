@@ -1,0 +1,46 @@
+{
+    "id": "crate-framework",
+    "instances": 1,
+    "cpus": 0.25,
+    "mem": 128,
+    "portDefinitions": [
+        {
+            "port": 4242,
+            "protocol": "tcp",
+            "name": "api"
+        }
+    ],
+    "requirePorts": true,
+    "env": {
+        "CRATE_CLUSTER_NAME": "dev-local",
+        "CRATE_VERSION": "0.54.8",
+        "CRATE_HTTP_PORT": "4200",
+        "CRATE_TRANSPORT_PORT": "4300"
+    },
+    "fetch": [
+        {
+            "uri": "https://cdn.crate.io/downloads/releases/crate-mesos-0.2.0-SNAPSHOT-db6471b.tar.gz",
+            "extract": true,
+            "executable": false,
+            "cache": false
+        },
+        {
+            "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
+            "extract": true,
+            "executable": false,
+            "cache": false
+        }
+    ],
+    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-*.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --zookeeper master.mesos:2181 --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT",
+    "healthChecks": [
+        {
+            "protocol": "HTTP",
+            "path": "/cluster",
+            "gracePeriodSeconds": 3,
+            "intervalSeconds": 10,
+            "portIndex": 0,
+            "timeoutSeconds": 10,
+            "maxConsecutiveFailures": 3
+        }
+    ]
+}
