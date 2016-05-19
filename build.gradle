@@ -51,16 +51,15 @@ repositories {
 dependencies {
     compile "com.jayway.awaitility:awaitility:$awaitilityVersion"
     compile "org.apache.mesos:mesos:$mesosVersion"
-    compile "com.github.ContainerSolutions:minimesos:$minimesosVersion"
     compile "org.glassfish.jersey.containers:jersey-container-grizzly2-http:$jerseyContainerGrizzly2Version"
     compile "org.glassfish.jersey.media:jersey-media-json-jackson:$jerseyMediaJsonJackson"
     compile "com.google.guava:guava:$guavaVersion"
     compile "com.beust:jcommander:$jcommanderVersion"
     compile "org.jetbrains:annotations:$jetbrainsAnnotationsVersion"
     compile "io.crate:crate-client:$crateClientVersion"
-    compile "org.slf4j:slf4j-log4j12:$log4jVersion"
     compile "org.apache.httpcomponents:httpclient:$apacheHttpClientVersion"
     compile "org.apache.commons:commons-io:$apacheCommonIOVersion"
+    compile "com.github.ContainerSolutions:minimesos:$minimesosVersion"
     testCompile "org.hamcrest:hamcrest-all:$hamcrestAllVersion"
     testCompile ("junit:junit:$junitVersion") {
         exclude group: 'org.hamcrest', module: 'hamcrest-core'
@@ -71,10 +70,21 @@ dependencies {
 }
 
 test {
+    exclude '**/*IntegrationTest.*'
     testLogging {
         // Show that tests are run in the command-line output
         events 'started'
     }
+}
+
+task itest(type: Test) {
+    dependsOn fatJar
+    include '**/*IntegrationTest.*'
+
+    environment 'DOCKER_TLS_VERIFY', System.getenv("DOCKER_TLS_VERIFY")
+    environment 'DOCKER_HOST', System.getenv("DOCKER_HOST")
+    environment 'DOCKER_CERT_PATH', System.getenv("DOCKER_CERT_PATH")
+    environment 'DOCKER_MACHINE_NAME', System.getenv("DOCKER_MACHINE_NAME")
 }
 
 task getVersion (dependsOn: 'classes') << {
