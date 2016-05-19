@@ -34,6 +34,15 @@ Current Crate version is ``0.47.8``.
 Alternatively you can specify a full download URL for Crate. In that case
 the URL needs to be in the format: ``http(s)://<HOST><PATH>/crate-<X>.<Y>.<Z><SUFFIX>.tar.gz``
 
+Open Files
+==========
+Depending on the size of your installation, Crate can open a lot of files. You can check the number of open files with ``ulimit -n``,
+but it can depend on your host operating system. How to increase the number is dependent for your operating system. 
+For instance, in RHEL6.x, you can place ``crate.conf`` file containing ``crate soft nofile 65535`` and ``crate hard nofile 65535`` 
+under ``/etc/security/limit.d``. This will set limit of number of open files for user ``crate`` to 65535. Furthermore it is recommended 
+to set the memlock limit (the maximum locked-in-memory address space) to unlimited. You can do it by adding 
+``crate hard memlock unlimited`` and  ``crate soft memlock unlimited`` lines to the ``crate.conf`` file mentioned above for RHEL6.x, 
+but please take into account that, it may differ in other operating systems.
 
 Execute via Command Line
 ------------------------
