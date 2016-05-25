@@ -28,11 +28,19 @@ import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.Version;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.*;
-import javax.ws.rs.core.*;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import java.util.HashMap;
 import java.util.List;
 
@@ -55,6 +63,10 @@ public class CrateRestResource {
             return new CrateClient(store.state().crateInstances().unicastHosts());
         }
         return null;
+    }
+
+    private CuratorFramework zkClient(){
+        return CuratorFrameworkFactory.builder().connectString(conf.zookeeper).build();
     }
 
     @GET
@@ -162,8 +174,44 @@ public class CrateRestResource {
                 }).build();
             }
         }
+
+        if(desired > getMesosAgentCount()){
+            return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
+                @Override
+                public int getStatus() {
+                    return Response.Status.FORBIDDEN.getStatusCode();
+                }
+                @Override
+                public Object getMessage() {
+                    return "Can not initialize number of nodes more than active agents in mesos cluster.";
+                }
+            }).build();
+        }
+
         store.state().desiredInstances(desired);
         return Response.ok(new GenericAPIResponse() {}).build();
+    }
+
+    private String getMesosMasterIp(){
+        try {
+            return new String(zkClient().getData().forPath(conf.frameworkName));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    private int getMesosAgentCount(){
+        String url = "http://" + getMesosMasterIp() + ":5050/metrics/snapshot";
+        Client client = ClientBuilder.newClient();
+        javax.ws.rs.core.Response res = client.target(getMesosMasterIp()).request(MediaType.APPLICATION_JSON).get();
+
+        final String resJson = res.readEntity(String.class);
+        JSONObject clusterState = new JSONObject(resJson);
+        int active_agents = clusterState.getInt("slaves_active");
+
+        return active_agents;
     }
 
     @POST
