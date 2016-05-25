@@ -44,6 +44,13 @@ to set the memlock limit (the maximum locked-in-memory address space) to unlimit
 ``crate hard memlock unlimited`` and  ``crate soft memlock unlimited`` lines to the ``crate.conf`` file mentioned above for RHEL6.x, 
 but please take into account that, it may differ in other operating systems.
 
+Vagrant Setup
+=============
+The ``Vagrantfile`` in this repository can be used for easy installation and testing. If you want to setup a mesos cluster with 3 nodes, you have to 
+run ``vagrant up`` in repository root directory and add hostnames and IP addresses of vagrant boxes which are ``mesos-slave-1 192.168.10.101``, 
+``mesos-slave-2   192.168.10.102`` and ``mesos-slave-3 192.168.10.103`` to the ``/etc/hosts`` configuration file of the host machine. 
+
+
 Execute via Command Line
 ------------------------
 
