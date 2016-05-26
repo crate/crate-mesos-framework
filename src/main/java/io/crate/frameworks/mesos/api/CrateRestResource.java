@@ -28,8 +28,11 @@ import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.Version;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.RetrySleeper;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,8 +68,13 @@ public class CrateRestResource {
         return null;
     }
 
-    private CuratorFramework zkClient(){
-        return CuratorFrameworkFactory.builder().connectString(conf.zookeeper).build();
+    private CuratorFramework zkClient() {
+        return CuratorFrameworkFactory.builder().retryPolicy(new RetryPolicy() {
+            @Override
+            public boolean allowRetry(int retryCount, long elapsedTimeMs, RetrySleeper sleeper) {
+                return false;
+            }
+        }).connectString(conf.zookeeper).build();
     }
 
     @GET
@@ -88,7 +96,7 @@ public class CrateRestResource {
         return Response.ok().entity(new GenericAPIResponse() {
             @Override
             public Object getMessage() {
-                return new HashMap<String, Object>(){
+                return new HashMap<String, Object>() {
                     {
                         put("mesosMaster", conf.mesosMaster());
                         put("instances", new HashMap<String, Integer>() {
@@ -98,7 +106,7 @@ public class CrateRestResource {
                             }
                         });
                         put("excludedSlaves", excluded);
-                        put("cluster", new HashMap<String, Object>(){
+                        put("cluster", new HashMap<String, Object>() {
                             {
                                 put("version", conf.version);
                                 put("name", conf.clusterName);
@@ -106,7 +114,7 @@ public class CrateRestResource {
                                 put("nodeCount", conf.nodeCount);
                             }
                         });
-                        put("resources", new HashMap<String, Double>(){
+                        put("resources", new HashMap<String, Double>() {
                             {
                                 put("memory", conf.resMemory);
                                 put("heap", conf.resHeap);
@@ -114,7 +122,7 @@ public class CrateRestResource {
                                 put("disk", conf.resDisk);
                             }
                         });
-                        put("api", new HashMap<String, Integer>(){
+                        put("api", new HashMap<String, Integer>() {
                             {
                                 put("apiPort", conf.apiPort);
                             }
@@ -130,12 +138,13 @@ public class CrateRestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response clusterResize(final ClusterResizeRequest data) {
         int desired = data.getInstances();
-        if(desired == 0) {
+        if (desired == 0) {
             return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
                 @Override
                 public int getStatus() {
                     return Response.Status.FORBIDDEN.getStatusCode();
                 }
+
                 @Override
                 public Object getMessage() {
                     return "Could not change the number of instances. Scaling down to zero instances is not allowed. Please use '/cluster/shutdown' instead.";
@@ -149,7 +158,7 @@ public class CrateRestResource {
                 SQLResponse response = client.sql("select number_of_replicas from information_schema.tables group by number_of_replicas").actionGet();
                 for (Object[] objects : response.rows()) {
                     List<String> replicas = Splitter.on("-").splitToList((String) objects[0]);
-                    String val = replicas.get(replicas.size()-1);
+                    String val = replicas.get(replicas.size() - 1);
                     if (replicas.size() == 2 && val.equals("all")) {
                         val = replicas.get(0);
                     }
@@ -167,6 +176,7 @@ public class CrateRestResource {
                     public int getStatus() {
                         return Response.Status.FORBIDDEN.getStatusCode();
                     }
+
                     @Override
                     public Object getMessage() {
                         return "Could not change the number of instances. The number of desired instances is lower than the number of replicas + 1.";
@@ -175,26 +185,47 @@ public class CrateRestResource {
             }
         }
 
-        if(desired > getMesosAgentCount()){
+        int mesosAgentCount = getMesosAgentCount();
+
+        if(desired > mesosAgentCount && mesosAgentCount != -1) {
             return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
                 @Override
                 public int getStatus() {
                     return Response.Status.FORBIDDEN.getStatusCode();
                 }
+
                 @Override
                 public Object getMessage() {
-                    return "Can not initialize number of nodes more than active agents in mesos cluster.";
+                    return "Could not initialize more Crate nodes than existing number of mesos agents";
                 }
             }).build();
         }
 
         store.state().desiredInstances(desired);
-        return Response.ok(new GenericAPIResponse() {}).build();
+        return Response.ok(new GenericAPIResponse() {
+        }).build();
+
     }
 
-    private String getMesosMasterIp(){
+    @Nullable
+    private String getMesosMasterIp() {
         try {
-            return new String(zkClient().getData().forPath(conf.frameworkName));
+            CuratorFramework cf = zkClient();
+            cf.start();
+            String data = "";
+            List<String> childrenList = cf.getChildren().forPath("/mesos");
+
+            for(String child: childrenList){
+                if(child.contains("json.info")){
+                    data = new String(cf.getData().forPath("/mesos/" + child));
+                }
+            }
+            JSONObject clusterState = new JSONObject(data);
+            JSONObject address = clusterState.getJSONObject("address");
+            String masterIP = address.getString("ip");
+            cf.close();
+            LOGGER.debug("Mesos Master IP is: " + masterIP);
+            return masterIP;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -202,24 +233,32 @@ public class CrateRestResource {
         return null;
     }
 
-    private int getMesosAgentCount(){
-        String url = "http://" + getMesosMasterIp() + ":5050/metrics/snapshot";
-        Client client = ClientBuilder.newClient();
-        javax.ws.rs.core.Response res = client.target(getMesosMasterIp()).request(MediaType.APPLICATION_JSON).get();
+    private int getMesosAgentCount() {
+        String masterIP = getMesosMasterIp();
+        if(masterIP != null) {
+            String url = "http://"+ masterIP +":5050/metrics/snapshot";
+            Client client = ClientBuilder.newClient();
+            javax.ws.rs.core.Response res = client.target(url).request(MediaType.APPLICATION_JSON).get();
 
-        final String resJson = res.readEntity(String.class);
-        JSONObject clusterState = new JSONObject(resJson);
-        int active_agents = clusterState.getInt("slaves_active");
+            final String resJson = res.readEntity(String.class);
+            JSONObject clusterState = new JSONObject(resJson);
+            int active_agents = clusterState.getInt("master/slaves_active");
+            LOGGER.debug("Number of active agents is : " + active_agents);
 
-        return active_agents;
+            return active_agents;
+        }else {
+            LOGGER.error("Could not resolve mesos master IP");
+        }
+
+        return -1;
     }
 
     @POST
     @Path("/cluster/shutdown")
     public Response clusterShutdown() {
         store.state().desiredInstances(0);
-        return Response.ok(new GenericAPIResponse() {}).build();
+        return Response.ok(new GenericAPIResponse() {
+        }).build();
     }
-
 }
 
