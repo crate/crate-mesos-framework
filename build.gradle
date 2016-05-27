@@ -23,6 +23,9 @@ ext {
     minimesosVersion = "0.9.0"
     awaitilityVersion = "1.7.0"
 
+    //apache curator
+    curatorVersion = "3.0.0"
+
     // testing
     junitVersion="4.12"
     mockitoVersion="1.10.19"
@@ -60,6 +63,7 @@ dependencies {
     compile "org.apache.httpcomponents:httpclient:$apacheHttpClientVersion"
     compile "org.apache.commons:commons-io:$apacheCommonIOVersion"
     compile "com.github.ContainerSolutions:minimesos:$minimesosVersion"
+    compile "org.apache.curator:curator-framework:$curatorVersion"
     testCompile "org.hamcrest:hamcrest-all:$hamcrestAllVersion"
     testCompile ("junit:junit:$junitVersion") {
         exclude group: 'org.hamcrest', module: 'hamcrest-core'

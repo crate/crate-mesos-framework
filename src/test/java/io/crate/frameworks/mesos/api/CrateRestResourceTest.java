@@ -32,8 +32,8 @@ import org.junit.Test;
 import javax.ws.rs.core.UriInfo;
 import java.util.HashMap;
 
-import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 public class CrateRestResourceTest {
 

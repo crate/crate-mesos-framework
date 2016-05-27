@@ -5,9 +5,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import static io.crate.frameworks.mesos.SaneProtos.cpus;
-import static io.crate.frameworks.mesos.SaneProtos.mem;
-import static io.crate.frameworks.mesos.SaneProtos.ports;
+import static io.crate.frameworks.mesos.SaneProtos.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
