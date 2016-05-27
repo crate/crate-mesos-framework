@@ -55,6 +55,7 @@ public class CrateRestResource {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateRestResource.class);
     private final PersistentStateStore store;
     private final Configuration conf;
+    private static String mesosMasterPort = "5050";
 
     public CrateRestResource(PersistentStateStore store, Configuration conf) {
         this.store = store;
@@ -220,12 +221,19 @@ public class CrateRestResource {
                     data = new String(cf.getData().forPath("/mesos/" + child));
                 }
             }
+
             JSONObject clusterState = new JSONObject(data);
             JSONObject address = clusterState.getJSONObject("address");
-            String masterIP = address.getString("ip");
-            cf.close();
-            LOGGER.debug("Mesos Master IP is: " + masterIP);
-            return masterIP;
+
+            if(address == null){
+                LOGGER.error("address object is not available in /mesos znode data");
+            } else {
+                String masterIP = address.getString("ip");
+                mesosMasterPort = address.getString("port");
+                cf.close();
+                LOGGER.debug("Mesos Master IP is: " + masterIP);
+                return masterIP;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -236,7 +244,7 @@ public class CrateRestResource {
     private int getMesosAgentCount() {
         String masterIP = getMesosMasterIp();
         if(masterIP != null) {
-            String url = "http://"+ masterIP +":5050/metrics/snapshot";
+            String url = "http://"+ masterIP + ":" + mesosMasterPort + "/metrics/snapshot";
             Client client = ClientBuilder.newClient();
             javax.ws.rs.core.Response res = client.target(url).request(MediaType.APPLICATION_JSON).get();
 
@@ -257,8 +265,7 @@ public class CrateRestResource {
     @Path("/cluster/shutdown")
     public Response clusterShutdown() {
         store.state().desiredInstances(0);
-        return Response.ok(new GenericAPIResponse() {
-        }).build();
+        return Response.ok(new GenericAPIResponse() {}).build();
     }
 }
 
