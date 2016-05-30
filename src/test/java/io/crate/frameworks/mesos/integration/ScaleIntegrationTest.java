@@ -22,6 +22,8 @@
 package io.crate.frameworks.mesos.integration;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
+import io.crate.frameworks.mesos.CrateInstances;
+import org.json.JSONArray;
 import org.junit.After;
 import org.junit.Test;
 
@@ -44,6 +46,22 @@ public class ScaleIntegrationTest extends BaseIntegrationTest {
         assertThat(crateNodesCount(), is(3));
         scaleCrate(2);
         assertThat(crateNodesCount(), is(2));
+    }
+
+    @Test
+    public void testMinimumMasterNodes() throws UnirestException {
+        scaleCrate(3);
+        assertThat(CrateInstances.calculateQuorum(2), is(getMinMasterNodes()));
+        scaleCrate(2);
+        assertThat(CrateInstances.calculateQuorum(2), is(getMinMasterNodes()));
+        scaleCrate(1);
+        assertThat(CrateInstances.calculateQuorum(1), is(getMinMasterNodes()));
+    }
+
+    private int getMinMasterNodes() throws UnirestException {
+        JSONArray rows = execute("select settings['discovery']['zen']['minimum_master_nodes'] from sys.cluster")
+                .getBody().getObject().getJSONArray("rows");
+        return rows.getJSONArray(0).getInt(0);
     }
 
     @After
