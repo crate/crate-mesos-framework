@@ -41,6 +41,9 @@ ext {
     jetbrainsAnnotationsVersion="13.0"
     jcommanderVersion="1.30"
     guavaVersion="0.19.0"
+
+    //apache curator
+    curatorVersion = "3.0.0"
 }
 
 repositories {
@@ -60,6 +63,7 @@ dependencies {
     compile "org.apache.httpcomponents:httpclient:$apacheHttpClientVersion"
     compile "org.apache.commons:commons-io:$apacheCommonIOVersion"
     compile "com.github.ContainerSolutions:minimesos:$minimesosVersion"
+    compile "org.apache.curator:curator-framework:$curatorVersion"
     testCompile "org.hamcrest:hamcrest-all:$hamcrestAllVersion"
     testCompile ("junit:junit:$junitVersion") {
         exclude group: 'org.hamcrest', module: 'hamcrest-core'

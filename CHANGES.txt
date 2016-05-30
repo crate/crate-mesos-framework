@@ -5,6 +5,9 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Do not allow to resize a Crate cluster greater than the amount of available
+    slaves in the Mesos cluster
+
   - Set ``gateway`` and ``minimum_master_nodes`` settings when resizing the
     Crate cluster
 

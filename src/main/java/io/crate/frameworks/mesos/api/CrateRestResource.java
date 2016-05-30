@@ -31,11 +31,18 @@ import io.crate.frameworks.mesos.PersistentStateStore;
 import io.crate.frameworks.mesos.Version;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryNTimes;
 import org.jetbrains.annotations.Nullable;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.ws.rs.*;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.*;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +54,7 @@ public class CrateRestResource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateRestResource.class);
     private static final String SQL_MAX_REPLICAS = "SELECT number_of_replicas FROM information_schema.tables GROUP BY number_of_replicas";
+    private static final Client RS_CLIENT = ClientBuilder.newClient();
     private final PersistentStateStore store;
     private final Configuration conf;
 
@@ -177,6 +185,25 @@ public class CrateRestResource {
                 }
             }).build();
         }
+
+        String address = mesosMasterAddress();
+        if (address != null) {
+            int activeMesosSlaves = numActiveSlaves(address);
+            if (desired > activeMesosSlaves) {
+                return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
+                    @Override
+                    public int getStatus() {
+                        return Response.Status.FORBIDDEN.getStatusCode();
+                    }
+
+                    @Override
+                    public Object getMessage() {
+                        return "Could not initialize more Crate nodes than existing number of mesos agents";
+                    }
+                }).build();
+            }
+        }
+
         CrateClient client = client();
         if (client != null) {
             if (desired < store.state().crateInstances().size()) {
@@ -205,11 +232,52 @@ public class CrateRestResource {
         return Response.ok(new GenericAPIResponse() {}).build();
     }
 
+    CuratorFramework zkClient() {
+        return CuratorFrameworkFactory.builder()
+                .retryPolicy(new RetryNTimes(3, 1000))
+                .connectString(conf.zookeeper)
+                .build();
+    }
+
+    @Nullable
+    String mesosMasterAddress() {
+        try (CuratorFramework cf = zkClient()) {
+            cf.start();
+            List<String> children = cf.getChildren().forPath("/mesos");
+            if (children.isEmpty()) {
+                return null;
+            }
+
+            JSONObject cfData = null;
+            for (String child : children) {
+                if (child.startsWith("json.info")) {
+                    cfData = new JSONObject(new String(cf.getData().forPath("/mesos/" + child)));
+                    break;
+                }
+            }
+            if (cfData != null) {
+                JSONObject address = cfData.getJSONObject("address");
+                return String.format("%s:%d", address.getString("ip"), address.getInt("port"));
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error while obtaining a mesos address from the curator framework: ", e);
+        }
+        return null;
+    }
+
+    int numActiveSlaves(@Nonnull String mesosAddr) {
+        String url = String.format("http://%s/metrics/snapshot", mesosAddr);
+        javax.ws.rs.core.Response response = RS_CLIENT.target(url).request(MediaType.APPLICATION_JSON).get();
+        JSONObject clusterState = new JSONObject(response.readEntity(String.class));
+
+        return clusterState.getInt("master/slaves_active");
+    }
+
     @POST
     @Path("/cluster/shutdown")
     public Response clusterShutdown() {
         store.state().desiredInstances(0);
         return Response.ok(new GenericAPIResponse() {}).build();
     }
-}
 
+}
