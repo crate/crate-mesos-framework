@@ -5,6 +5,8 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Fixed bug where the same task got killed multiple times
+
   - Set ``gateway`` and ``minimum_master_nodes`` settings when resizing the
     Crate cluster
 
