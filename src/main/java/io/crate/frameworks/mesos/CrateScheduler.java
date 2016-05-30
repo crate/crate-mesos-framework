@@ -142,6 +142,8 @@ public class CrateScheduler implements Scheduler {
         crateInstances = state.crateInstances();
 
         instancesObserver.driver(driver);
+        state.desiredInstances().clearObservers();
+        state.desiredInstances(configuration.nodeCount);
         state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
         for (String reason : state.excludedSlaves().keySet()) {
@@ -150,8 +152,6 @@ public class CrateScheduler implements Scheduler {
             }
 
         }
-
-        state.desiredInstances(configuration.nodeCount);
     }
 
     @Override
@@ -172,15 +172,11 @@ public class CrateScheduler implements Scheduler {
         if (!reconcileTasks.isEmpty()) {
             LOGGER.info("reconcileTasks size={}", reconcileTasks.size());
             declineAllOffers(driver, offers);
-            LOGGER.info("declined offers = {}", offers);
             return;
         }
         CrateState state = stateStore.state();
         int required = state.missingInstances();
-        if (required == 0) {
-            declineAllOffers(driver, offers);
-        } else if (required < 0) {
-            killInstances(driver, required * -1);
+        if (required <= 0) {
             declineAllOffers(driver, offers);
         } else {
             int launched = 0;
@@ -379,7 +375,6 @@ public class CrateScheduler implements Scheduler {
 
         stateStore.state().instances(crateInstances);
         stateStore.save();
-        resizeCluster(driver);
     }
 
     private void resizeCluster(SchedulerDriver driver) {
