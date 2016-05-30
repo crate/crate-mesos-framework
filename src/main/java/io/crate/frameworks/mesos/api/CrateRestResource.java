@@ -32,11 +32,13 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.RetrySleeper;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryNTimes;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.ws.rs.*;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -55,7 +57,8 @@ public class CrateRestResource {
     private static final Logger LOGGER = LoggerFactory.getLogger(CrateRestResource.class);
     private final PersistentStateStore store;
     private final Configuration conf;
-    private static String mesosMasterPort = "5050";
+
+    private static Client rsClient = ClientBuilder.newClient();
 
     public CrateRestResource(PersistentStateStore store, Configuration conf) {
         this.store = store;
@@ -69,13 +72,11 @@ public class CrateRestResource {
         return null;
     }
 
-    private CuratorFramework zkClient() {
-        return CuratorFrameworkFactory.builder().retryPolicy(new RetryPolicy() {
-            @Override
-            public boolean allowRetry(int retryCount, long elapsedTimeMs, RetrySleeper sleeper) {
-                return false;
-            }
-        }).connectString(conf.zookeeper).build();
+    CuratorFramework zkClient() {
+        return CuratorFrameworkFactory.builder()
+                .retryPolicy(new RetryNTimes(3, 1000))
+                .connectString(conf.zookeeper)
+                .build();
     }
 
     @GET
@@ -139,6 +140,7 @@ public class CrateRestResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response clusterResize(final ClusterResizeRequest data) {
         int desired = data.getInstances();
+        LOGGER.debug("desired instances = {}", desired);
         if (desired == 0) {
             return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
                 @Override
@@ -186,9 +188,13 @@ public class CrateRestResource {
             }
         }
 
-        int mesosAgentCount = getMesosAgentCount();
+        JSONObject address = mesosMasterAddress();
+        int activeMesosSlaves = 0;
+        if (address != null) {
+            activeMesosSlaves = numActiveSlaves(address);
+        }
 
-        if(desired > mesosAgentCount && mesosAgentCount != -1) {
+        if(activeMesosSlaves > 0 && desired > activeMesosSlaves)  {
             return Response.status(Response.Status.FORBIDDEN).entity(new GenericAPIResponse() {
                 @Override
                 public int getStatus() {
@@ -203,62 +209,48 @@ public class CrateRestResource {
         }
 
         store.state().desiredInstances(desired);
-        return Response.ok(new GenericAPIResponse() {
-        }).build();
-
+        return Response.ok(new GenericAPIResponse() {}).build();
     }
 
     @Nullable
-    private String getMesosMasterIp() {
-        try {
-            CuratorFramework cf = zkClient();
+    JSONObject mesosMasterAddress() {
+        try (CuratorFramework cf = zkClient()) {
             cf.start();
-            String data = "";
-            List<String> childrenList = cf.getChildren().forPath("/mesos");
+            List<String> children = cf.getChildren().forPath("/mesos");
+            if (children.isEmpty()) {
+                return null;
+            }
 
-            for(String child: childrenList){
-                if(child.contains("json.info")){
-                    data = new String(cf.getData().forPath("/mesos/" + child));
+            JSONObject cfData = null;
+            for (String child : children) {
+                if (child.contains("json.info")) {
+                    cfData = new JSONObject(
+                            new String(cf.getData().forPath("/mesos/" + child))
+                    );
+                    break;
                 }
             }
-
-            JSONObject clusterState = new JSONObject(data);
-            JSONObject address = clusterState.getJSONObject("address");
-
-            if(address == null){
-                LOGGER.error("address object is not available in /mesos znode data");
-            } else {
-                String masterIP = address.getString("ip");
-                mesosMasterPort = address.getString("port");
-                cf.close();
-                LOGGER.debug("Mesos Master IP is: " + masterIP);
-                return masterIP;
+            if (cfData == null) {
+                LOGGER.error(" object is not available in /mesos znode data");
+                return null;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        return null;
+            return cfData.getJSONObject("address");
+        } catch (Exception e) {
+            LOGGER.error("Error while obtaining a mesos address from the curator framework: ", e.getLocalizedMessage());
+            return null;
+        }
     }
 
-    private int getMesosAgentCount() {
-        String masterIP = getMesosMasterIp();
-        if(masterIP != null) {
-            String url = "http://"+ masterIP + ":" + mesosMasterPort + "/metrics/snapshot";
-            Client client = ClientBuilder.newClient();
-            javax.ws.rs.core.Response res = client.target(url).request(MediaType.APPLICATION_JSON).get();
+    int numActiveSlaves(@Nonnull JSONObject mesosMasterAddress) {
+        String url = String.format("http://%s:%d/metrics/snapshot",
+                mesosMasterAddress.getString("ip"),
+                mesosMasterAddress.getInt("port")
+        );
+        javax.ws.rs.core.Response response = rsClient.target(url).request(MediaType.APPLICATION_JSON).get();
+        JSONObject clusterState = new JSONObject(response.readEntity(String.class));
 
-            final String resJson = res.readEntity(String.class);
-            JSONObject clusterState = new JSONObject(resJson);
-            int active_agents = clusterState.getInt("master/slaves_active");
-            LOGGER.debug("Number of active agents is : " + active_agents);
-
-            return active_agents;
-        }else {
-            LOGGER.error("Could not resolve mesos master IP");
-        }
-
-        return -1;
+        return clusterState.getInt("master/slaves_active");
     }
 
     @POST
@@ -267,5 +259,6 @@ public class CrateRestResource {
         store.state().desiredInstances(0);
         return Response.ok(new GenericAPIResponse() {}).build();
     }
+
 }
 
