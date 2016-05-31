@@ -20,3 +20,7 @@ hs_err_pid*
 .idea/
 
 .vagrant/
+.installed.cfg
+docs/out/
+docs/bin/
+
