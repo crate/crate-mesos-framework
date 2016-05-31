@@ -22,13 +22,14 @@
 package io.crate.frameworks.mesos;
 
 import com.google.protobuf.ByteString;
+import io.crate.action.sql.SQLActionException;
+import io.crate.action.sql.SQLRequest;
+import io.crate.client.CrateClient;
 import io.crate.frameworks.mesos.api.CrateHttpService;
 import io.crate.frameworks.mesos.config.Configuration;
 import io.crate.frameworks.mesos.config.Resources;
-import org.apache.mesos.MesosNativeLibrary;
-import org.apache.mesos.Protos;
-import org.apache.mesos.Scheduler;
-import org.apache.mesos.SchedulerDriver;
+import io.crate.shade.org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.apache.mesos.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,7 +134,7 @@ public class CrateScheduler implements Scheduler {
             driver.stop();
         }
         LOGGER.info("Registered framework with frameworkId {}", frameworkID.getValue());
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         state.frameworkId(frameworkID.getValue());
@@ -141,6 +142,8 @@ public class CrateScheduler implements Scheduler {
         crateInstances = state.crateInstances();
 
         instancesObserver.driver(driver);
+        state.desiredInstances().clearObservers();
+        state.desiredInstances(configuration.nodeCount);
         state.desiredInstances().addObserver(instancesObserver);
         reconcileTasks(driver);
         for (String reason : state.excludedSlaves().keySet()) {
@@ -149,13 +152,12 @@ public class CrateScheduler implements Scheduler {
             }
 
         }
-
     }
 
     @Override
     public void reregistered(SchedulerDriver driver, Protos.MasterInfo masterInfo) {
         LOGGER.info("Reregistered framework. Starting task reconciliation.");
-        hostIP = Main.currentHost();
+        hostIP = Main.host();
         CrateState state = stateStore.state();
         assert stateStore.state() != null : "State must not be null";
         crateInstances = state.crateInstances();
@@ -168,16 +170,13 @@ public class CrateScheduler implements Scheduler {
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
         if (!reconcileTasks.isEmpty()) {
+            LOGGER.info("reconcileTasks size={}", reconcileTasks.size());
             declineAllOffers(driver, offers);
             return;
         }
-
         CrateState state = stateStore.state();
         int required = state.missingInstances();
-        if (required == 0) {
-            declineAllOffers(driver, offers);
-        } else if (required < 0) {
-            killInstances(driver, required * -1);
+        if (required <= 0) {
             declineAllOffers(driver, offers);
         } else {
             int launched = 0;
@@ -224,7 +223,7 @@ public class CrateScheduler implements Scheduler {
 
     private boolean slaveWithRunningInstance(String slaveId) {
         return stateStore.state().slavesWithInstances().isEmpty() ||
-                    stateStore.state().slavesWithInstances().contains(slaveId);
+                stateStore.state().slavesWithInstances().contains(slaveId);
 
     }
 
@@ -243,7 +242,7 @@ public class CrateScheduler implements Scheduler {
                                 .build()
                 ))
                 .setValue(
-                        String.format("env && $(pwd)/jre*/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
+                        String.format("env && $(pwd)/jre/bin/java -cp %s io.crate.frameworks.mesos.CrateExecutor", JAR_NAME)
                 )
                 .build();
         return Protos.ExecutorInfo.newBuilder()
@@ -274,7 +273,8 @@ public class CrateScheduler implements Scheduler {
                 configuration,
                 offer.getHostname(),
                 crateInstances,
-                attributes
+                attributes,
+                stateStore.state().desiredInstances().getValue()
         );
     }
 
@@ -353,7 +353,12 @@ public class CrateScheduler implements Scheduler {
                 break;
             case TASK_STAGING:
             case TASK_STARTING:
-                LOGGER.debug("waiting ...");
+                // Crate node is about to start.
+                LOGGER.debug("Waiting for new node to start ...");
+                break;
+            case TASK_KILLING:
+                // Crate node is about to be killed.
+                LOGGER.debug("Waiting for node to stop ...");
                 break;
             case TASK_LOST:
             case TASK_FAILED:
@@ -370,18 +375,19 @@ public class CrateScheduler implements Scheduler {
 
         stateStore.state().instances(crateInstances);
         stateStore.save();
-        resizeCluster(driver);
     }
 
     private void resizeCluster(SchedulerDriver driver) {
         int instancesMissing = stateStore.state().missingInstances();
         if (instancesMissing != 0) {
             LOGGER.debug("Resize cluster. {} missing instances.", instancesMissing);
-        }
-        if (instancesMissing > 0) {
-            requestMoreResources(driver, instancesMissing);
-        } else if (instancesMissing < 0) {
-            killInstances(driver, instancesMissing * -1);
+            if (instancesMissing > 0) {
+                requestMoreResources(driver, instancesMissing);
+            } else if (instancesMissing < 0) {
+                killInstances(driver, instancesMissing * -1);
+            }
+        } else {
+            LOGGER.trace("No missing instances, nothing to do.");
         }
         stateStore.save();
     }
@@ -417,7 +423,7 @@ public class CrateScheduler implements Scheduler {
                 stateStore.save();
                 scheduleReAddSlaveId(reason.toString(), slaveID.getValue());
                 break;
-          default:
+            default:
                 LOGGER.info("Switched on none cased data type: {}", data.type());
         }
     }
@@ -440,17 +446,18 @@ public class CrateScheduler implements Scheduler {
 
     @Override
     public void disconnected(SchedulerDriver driver) {
-        LOGGER.info("disconnected()");
+        LOGGER.info("disconnected(driver : {})", driver);
     }
 
     @Override
     public void slaveLost(SchedulerDriver driver, Protos.SlaveID slaveID) {
-        LOGGER.info("slaveLost()");
+        LOGGER.info("Slave lost slaveId=" + slaveID.getValue());
     }
 
     @Override
     public void executorLost(SchedulerDriver driver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
-        LOGGER.info("executorLost()");
+        LOGGER.info("Executor lost: executorId=" + executorID.getValue()
+                + " slaveId=" + slaveID.getValue() + " status=" + i);
     }
 
     @Override

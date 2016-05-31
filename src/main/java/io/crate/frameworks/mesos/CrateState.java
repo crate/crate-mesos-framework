@@ -49,8 +49,7 @@ public class CrateState implements Serializable {
         }
         ByteArrayInputStream in = new ByteArrayInputStream(value);
         try (ObjectInputStream objectInputStream = new ObjectInputStream(in)) {
-            CrateState state = (CrateState) objectInputStream.readObject();
-            return state;
+            return (CrateState) objectInputStream.readObject();
         } catch (ClassNotFoundException e) {
             LOGGER.error("Could not deserialize ClusterState:", e);
         }
@@ -94,7 +93,6 @@ public class CrateState implements Serializable {
     public int missingInstances() {
         return desiredInstances().getValue() - crateInstances().size();
     }
-
 
     public boolean addSlaveIdToExcludeList(String reason, String slaveId) {
         if (!excludedSlaves.containsKey(reason)) {

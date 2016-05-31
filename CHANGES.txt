@@ -5,6 +5,20 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+  - Fixed bug where the same task got killed multiple times
+
+  - Do not allow to resize a Crate cluster greater than the amount of available
+    slaves in the Mesos cluster
+
+  - Set ``gateway`` and ``minimum_master_nodes`` settings when resizing the
+    Crate cluster
+
+  - Fix: ``--crate-node-count`` command line argument was ignored
+
+  - Crate executable now uses correct Java executable provided by fetch URI
+
+  - Updated Mesos to ``0.28.1`` and Crate client to ``0.54.8``
+
 2015/08/08 0.1.0
 ================
 

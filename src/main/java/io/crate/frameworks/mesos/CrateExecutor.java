@@ -69,7 +69,7 @@ public class CrateExecutor implements Executor {
 
     private class StartupInspectionTask implements Runnable {
 
-        private static final String STATEMENT = "select id from sys.nodes where name = ?";
+        private static final String STATEMENT = "SELECT id FROM sys.nodes WHERE name = ?";
         private final CrateClient client;
         private final Object[] args;
 
@@ -123,10 +123,7 @@ public class CrateExecutor implements Executor {
             return;
         }
         currentTaskId = taskInfo.getTaskId();
-        driver.sendStatusUpdate(TaskStatus.newBuilder()
-                .setTaskId(currentTaskId)
-                .setState(TaskState.TASK_STARTING)
-                .build());
+        sendTaskStatus(driver, TaskState.TASK_STARTING);
 
         CrateExecutableInfo crateTask = null;
         try {
@@ -155,21 +152,13 @@ public class CrateExecutor implements Executor {
     public void killTask(ExecutorDriver driver, TaskID taskId) {
         LOGGER.info("Killing task : " + taskId.getValue());
         healthCheck.cancel(true);
-        if(forceShutdown){
+        int pid = task.pid();
+        if (forceShutdown){
             forceShutdownCrate(driver);
-            return;
-        }
-        if (task.process != null) {
+        } else if (pid >= 0 && task.process != null) {
             LOGGER.debug("Found task to kill: " + taskId.getValue());
-            int pid = task.pid();
-            if (pid == -1) {
-                LOGGER.error("Graceful shutdown failed. Could not read crate.pid.");
-                task.process.destroy();
-                task.process = null;
-                return;
-            }
             gracefulShutdownCrate(driver);
-        } else  {
+        } else {
             LOGGER.error("No running task found. Stopping executor.");
             driver.sendStatusUpdate(TaskStatus.newBuilder()
                     .setTaskId(taskId)
@@ -179,37 +168,37 @@ public class CrateExecutor implements Executor {
         }
     }
 
+    private void sendTaskStatus(ExecutorDriver driver, TaskState state){
+        driver.sendStatusUpdate(TaskStatus.newBuilder()
+                .setTaskId(currentTaskId)
+                .setState(state)
+                .build());
+    }
+
     private void gracefulShutdownCrate(ExecutorDriver driver) {
+        sendTaskStatus(driver, TaskState.TASK_KILLING);
         boolean success = task.gracefulStop();
         if (success) {
-            driver.sendStatusUpdate(TaskStatus.newBuilder()
-                    .setTaskId(currentTaskId)
-                    .setState(TaskState.TASK_KILLED)
-                    .build());
+            sendTaskStatus(driver, TaskState.TASK_KILLED);
             driver.stop();
         } else {
-            driver.sendStatusUpdate(TaskStatus.newBuilder()
-                    .setTaskId(currentTaskId)
-                    .setState(TaskState.TASK_RUNNING)
-                    .build());
+            // Crate could not be stopped gracefully: send task back to RUNNING state!
+            sendTaskStatus(driver, TaskState.TASK_RUNNING);
         }
     }
 
     public void forceShutdownCrate(ExecutorDriver driver) {
+        sendTaskStatus(driver, TaskState.TASK_KILLING);
         LOGGER.debug("Stop Crate process.");
-        task.process.destroy();
-        driver.sendStatusUpdate(TaskStatus.newBuilder()
-                .setTaskId(currentTaskId)
-                .setState(TaskState.TASK_KILLED)
-                .build());
+        task.destroy();
+        sendTaskStatus(driver, TaskState.TASK_KILLED);
         driver.stop();
     }
 
 
     private void restartCrate(ExecutorDriver driver) {
         LOGGER.debug("Restart Crate process.");
-        task.process.destroy();
-        task.process = null;
+        task.destroy();
         startProcess(driver, task);
     }
 
@@ -257,9 +246,10 @@ public class CrateExecutor implements Executor {
             driver.sendFrameworkMessage(msg.toStream());
             return false;
         }
-        boolean success = true;   // todo:  this is always true... what is intended?
+        boolean success = true;
         for (URI uri : info.uris()) {
-            if (!fetchAndExtractUri(uri)) {
+            success = fetchAndExtractUri(uri);
+            if (!success) {
                 break;
             }
         }
@@ -304,8 +294,7 @@ public class CrateExecutor implements Executor {
 
     private boolean extractFile(File tmpFile) {
         LOGGER.debug("Extracting file {} to {}", tmpFile.getName(), workingDirectory.getAbsolutePath());
-        boolean success = true;       // todo:  this is always true
-
+        boolean success = true;
         try {
             Process process = Runtime.getRuntime().exec(
                     new String[]{
@@ -331,6 +320,7 @@ public class CrateExecutor implements Executor {
         if (task.process == null) {
             try {
                 task.run();
+                // TODO: do we really want to redirect the Crate log output to stdout?
                 redirectProcess(task.process);
                 try {
                     Thread.sleep(10000);
@@ -352,10 +342,7 @@ public class CrateExecutor implements Executor {
     private void fail(ExecutorDriver driver) {
         cancelHealthCheckIfExists();
         healthCheckScheduler.shutdown();
-        driver.sendStatusUpdate(TaskStatus.newBuilder()
-                .setTaskId(currentTaskId)
-                .setState(TaskState.TASK_FAILED)
-                .build());
+        sendTaskStatus(driver, TaskState.TASK_FAILED);
         driver.stop();
     }
 
@@ -428,35 +415,34 @@ public class CrateExecutor implements Executor {
 
     public class Task {
 
-        private final String env;
-        private final String cmd;
-        public CrateExecutableInfo executableInfo;
+        private final CrateExecutableInfo executableInfo;
         public Process process = null;
 
         Task(CrateExecutableInfo info) {
             this.executableInfo = info;
-            this.cmd = cmd();
-            this.env = env();
 
         }
 
+        @NotNull
         private String env() {
             List<Environment.Variable> env = executableInfo.environment();
             ArrayList<String> vars = new ArrayList<>(env.size());
             for (Environment.Variable variable : env) {
                 vars.add(String.format("%s=%s", variable.getName(), variable.getValue()));
             }
-            vars.add("PATH=$(echo $(pwd)/jre*/bin):$PATH");
+            // The Crate executable is using the Java executable from within the JAVA_HOME folder.
+            vars.add("JAVA_HOME=$(pwd)/jre");
             return Joiner.on(" ").join(vars);
         }
 
+        @NotNull
         private String cmd() {
             return Joiner.on(" ").join(executableInfo.arguments());
         }
 
         public Process run() throws IOException {
-            final String runCmd = String.format("%s %s", task.env, task.cmd);
-            LOGGER.debug("Launch task: {}", runCmd);
+            final String runCmd = String.format("%s %s", env(), cmd());
+            LOGGER.info("Launch task: {}", runCmd);
             process = Runtime.getRuntime().exec(
                     new String[]{"sh", "-c", runCmd},
                     new String[]{},
@@ -479,6 +465,11 @@ public class CrateExecutor implements Executor {
               IOUtils.closeQuietly(pidFile);
             }
             return -1;
+        }
+
+        public void destroy() {
+            this.process.destroy();
+            this.process = null;
         }
 
         class GracefulShutdownWorker implements Runnable {

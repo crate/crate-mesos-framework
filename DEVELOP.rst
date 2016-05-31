@@ -45,13 +45,18 @@ If ``vagrant`` is installed simply run::
 
     vagrant up
 
-This will create and provision the VM if this is the first time ``vagrant up``
-is run, otherwise it will simply boot up the existing VM.
+This will create and provision 4 VMs:
+
+* ``mesos-master``: The Mesos master instance + Zookeeper
+* ``mesos-slave-{1..3}``: The Mesos slaves
+
+If this is the first time ``vagrant up`` is run, otherwise it will simply boot
+up the existing VMs.
 
 Once the VM is up and running the crate-mesos-framework can be started `inside`
-the VM. To do so ``vagrant ssh`` can be used::
+the VM. To do so ``vagrant ssh mesos-master`` can be used::
 
-    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.47.7"
+    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.54.9 --zookeeper 192.168.10.100:2181"
 
 .. note::
 
@@ -59,53 +64,124 @@ the VM. To do so ``vagrant ssh`` can be used::
     crate-mesos jar file can be accesses from inside the VM.
 
 
-The Mesos WebUI should be available under http://localhost:5050 immediately
+Hosts Entries
+-------------
+
+The static IPs of the Vagrant VMs are ``192.168.10.100`` for the master and
+``192.168.10.{101..103}`` for the slaves.
+
+You can add them to your ``/etc/hosts`` file::
+
+    192.168.10.100   mesos-master
+    192.168.10.101   mesos-slave-1
+    192.168.10.102   mesos-slave-2
+    192.168.10.103   mesos-slave-3
+
+The Mesos WebUI should be available under http://mesos-master:5050 immediately
 after ``vagrant up`` is finished.
 
-Once the crate-mesos-framework has been launched Crate should become available
-under http://localhost:4200/admin
+Once the crate-mesos-framework has been launched the framework API becomes
+available under http://mesos-master:4040/cluster (if API port not otherwise
+specified).
 
 **As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
-also possible to simply use ``bin/deploy --crate-version 0.47.7`` which will
-invoke both commands.**
+also possible to simply use ``bin/deploy --crate-version 0.47.7 --zookeeper
+192.168.10.100:2181`` which will invoke both commands.**
 
 Running Crate-Mesos-Framework via Marathon
 ------------------------------------------
 
 ``Crate-Mesos-Framework`` instances can be run and controlled through Marathon_
 system. For installing Marathon, please refer to `Mesosphere install guide`_.
-Marathon WebUI should be available under http://localhost:8080 after setting up.
+Marathon WebUI should be available under http://mesos-master:8080 after setting up.
 To run ``Crate-Mesos-Framework`` instance via ``HTTP`` you need to ``POST`` a
 JSON file with configuration environment variables to Marathon.
 
 Example
 -------
 
-``crate-mesos.json``
+``marathon/local.json``
 
 ::
 
     {
-      "id": "/crate/dev",
-      "instances": 1,
-      "cpus": 0.5,
-      "mem": 256,
-      "ports": [0],
-      "uris": [],
-      "env": {},
-      "cmd": "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-0.1.0.jar --crate-version 0.47.7"
+        "id": "crate-framework",
+        "instances": 1,
+        "cpus": 0.25,
+        "mem": 128,
+        "portDefinitions": [
+            {
+                "port": 4040,
+                "protocol": "tcp",
+                "name": "api"
+            }
+        ],
+        "requirePorts": true,
+        "env": {
+            "CRATE_CLUSTER_NAME": "dev-local",
+            "CRATE_VERSION": "0.54.9",
+            "CRATE_HTTP_PORT": "4200",
+            "CRATE_TRANSPORT_PORT": "4300",
+            "MESOS_MASTER": "192.168.10.100"
+        },
+        "fetch": [
+            {
+                "uri": "file:///vagrant/build/libs/crate-mesos.tar.gz",
+                "extract": true,
+                "executable": false,
+                "cache": false
+            },
+            {
+                "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
+                "extract": true,
+                "executable": false,
+                "cache": false
+            }
+        ],
+        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-*.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $MESOS_MASTER:2181",
+        "healthChecks": [
+            {
+                "protocol": "HTTP",
+                "path": "/cluster",
+                "gracePeriodSeconds": 3,
+                "intervalSeconds": 10,
+                "portIndex": 0,
+                "timeoutSeconds": 10,
+                "maxConsecutiveFailures": 3
+            }
+        ]
     }
 
 ::
 
-    curl -s -XPOST http://localhost:8080/v2/apps -d@crate-mesos.json -H "Content-Type: application/json"
+    curl -s -XPOST http://mesos-master:8080/v2/apps -d@marathon/local.json -H "Content-Type: application/json"
 
 Running tests
 =============
 
-In order to run the tests simply run them from within intellij or use gradle::
+In order to run the tests simply run them from within IntelliJ or use Gradle::
 
     ./gradlew test
+
+Integrations Tests
+------------------
+
+Integration test suite can be run using the following Gradle command::
+
+    ./gradlew itest
+
+However, integration tests use the Minimesos_ testing Framework which requires
+a working local Docker_ environment::
+
+
+    docker-machine create -d virtualbox \
+        --virtualbox-memory 8192 \
+        --virtualbox-cpu-count 1 \
+        minimesos
+    eval $(docker-machine env minimesos)
+    sudo route delete 172.17.0.0/16
+    sudo route -n add 172.17.0.0/16 $(docker-machine ip minimesos)
+
 
 Debugging
 =========
@@ -158,14 +234,10 @@ The resulting ``jar`` file will reside in the folder ``build/libs/``.
 
 
 .. _Java: http://www.java.com/
-
 .. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
-
 .. _OpenJDK: http://openjdk.java.net/projects/jdk7/
-
 .. _Gradle: http://www.gradle.org/
-
 .. _Marathon: https://mesosphere.github.io/marathon/
-
 .. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
-
+.. _Minimesos: https://minimesos.org/
+.. _Docker: https://www.docker.com/

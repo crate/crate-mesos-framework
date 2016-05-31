@@ -76,20 +76,26 @@ public class CrateSchedulerTest {
         state.desiredInstances(0);
         state.instances(instances);
 
-
         CrateScheduler crateScheduler = initScheduler(new Configuration(), "xx");
         assertThat(crateScheduler.reconcileTasks.size(), is(1));
     }
 
     @Test
+    public void testNodeCountParameter() throws Exception {
+        Configuration conf = new Configuration();
+        conf.nodeCount = 2;
+        initScheduler(conf, "xx");
+        assertThat(state.desiredInstances().getValue(), is(2));
+    }
+
+    @Test
     public void testResourceOffersDoesNotSpawnTooManyTasks() throws Exception {
         CrateInstances instances = new CrateInstances();
-
-        state.desiredInstances(4);
         state.instances(instances);
 
         Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
         Configuration configuration = new Configuration();
+        configuration.nodeCount = 4;
         CrateScheduler crateScheduler = initScheduler(configuration, frameworkID);
 
         List<Protos.Offer> offers = new ArrayList<>();
@@ -111,18 +117,25 @@ public class CrateSchedulerTest {
 
     @Test
     public void testReconcileTasksWithDifferentVersionAlreadyRunning() throws Exception {
+        Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
+        Configuration configOld = new Configuration();
+        configOld.version("0.47.7");
+        CrateScheduler crateScheduler = initScheduler(configOld, frameworkID);
+
         Protos.TaskID task = taskID("1");
         // configured version should be changed to the version of the running instance
         CrateInstances instances = new CrateInstances();
         instances.addInstance(new CrateInstance("host1", task.getValue(), "0.47.7", 4300, "exec1", "slave1"));
         state.instances(instances);
+        // for testing we need to remove observer
+        // otherwise it is not possible to change the value of the desired instances
+        state.desiredInstances().clearObservers();
         state.desiredInstances(5);
 
-        Configuration configuration = new Configuration();
-        configuration.version("0.48.0");
+        Configuration configNew = new Configuration();
+        configNew.version("0.48.0");
 
-        Protos.FrameworkID frameworkID = Protos.FrameworkID.newBuilder().setValue("xx").build();
-        CrateScheduler crateScheduler = initScheduler(configuration, frameworkID);
+        crateScheduler = reregisterScheduler(configNew);
         crateScheduler.reconcileTasks(driver);
         crateScheduler.statusUpdate(driver,
                 Protos.TaskStatus.newBuilder()
@@ -130,7 +143,7 @@ public class CrateSchedulerTest {
                         .setState(Protos.TaskState.TASK_RUNNING).build());
 
         // configuration holds the new version
-        assertThat(configuration.version, is("0.48.0"));
+        assertThat(configNew.version, is("0.48.0"));
 
         List<Protos.Offer> offers = new ArrayList<>();
         for (int i = 2; i < 4; i++) {
@@ -140,7 +153,7 @@ public class CrateSchedulerTest {
                     .setHostname("host"+idx)
                     .setSlaveId(Protos.SlaveID.newBuilder().setValue("slave"+idx))
                     .setFrameworkId(frameworkID)
-                    .addAllResources(configuration.getAllRequiredResources()).build());
+                    .addAllResources(configNew.getAllRequiredResources()).build());
         }
 
         crateScheduler.resourceOffers(driver, offers);
@@ -173,6 +186,12 @@ public class CrateSchedulerTest {
     private CrateScheduler initScheduler(Configuration configuration, Protos.FrameworkID frameworkID) {
         CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
         crateScheduler.registered(driver, frameworkID, masterInfo);
+        return crateScheduler;
+    }
+
+    private CrateScheduler reregisterScheduler(Configuration configuration) {
+        CrateScheduler crateScheduler = new CrateScheduler(store, configuration);
+        crateScheduler.reregistered(driver, masterInfo);
         return crateScheduler;
     }
 

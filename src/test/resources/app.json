@@ -1,0 +1,45 @@
+{
+    "id": "crate-dev",
+    "instances": 1,
+    "cpus": 0.25,
+    "mem": 128,
+    "portDefinitions": [
+        {
+            "port": ${API_PORT},
+            "protocol": "tcp",
+            "name": "api"
+        }
+    ],
+    "requirePorts": true,
+    "env": {
+        "CRATE_CLUSTER_NAME": "crate-dev",
+        "CRATE_HTTP_PORT": "${HTTP_PORT}",
+        "CRATE_TRANSPORT_PORT": "${TRANSPORT_PORT}"
+    },
+    "fetch": [
+        {
+            "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
+            "extract": true,
+            "executable": false,
+            "cache": false
+        },
+        {
+            "uri": "file://${CRATE_MESOS_FRAMEWORK_PATH}",
+            "extract": false,
+            "executable": true,
+            "cache": false
+        }
+    ],
+    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/${CRATE_MESOS_FRAMEWORK} --zookeeper ${ZOOKEEPER}:2181 --api-port $PORT0 --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version ${CRATE_VERSION} --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --resource-cpus 0.25 --resource-memory 512",
+    "healthChecks": [
+        {
+            "protocol": "HTTP",
+            "path": "/cluster",
+            "gracePeriodSeconds": 3,
+            "intervalSeconds": 10,
+            "portIndex": 0,
+            "timeoutSeconds": 10,
+            "maxConsecutiveFailures": 3
+        }
+    ]
+}
