@@ -159,9 +159,29 @@ Example
 Running tests
 =============
 
-In order to run the tests simply run them from within intellij or use gradle::
+In order to run the tests simply run them from within IntelliJ or use Gradle::
 
     ./gradlew test
+
+Integrations Tests
+------------------
+
+Integration test suite can be run using the following Gradle command::
+
+    ./gradlew itest
+
+However, integration tests use the Minimesos_ testing Framework which requires
+a working local Docker_ environment::
+
+
+    docker-machine create -d virtualbox \
+        --virtualbox-memory 8192 \
+        --virtualbox-cpu-count 1 \
+        minimesos
+    eval $(docker-machine env minimesos)
+    sudo route delete 172.17.0.0/16
+    sudo route -n add 172.17.0.0/16 $(docker-machine ip minimesos)
+
 
 Debugging
 =========
@@ -214,14 +234,10 @@ The resulting ``jar`` file will reside in the folder ``build/libs/``.
 
 
 .. _Java: http://www.java.com/
-
 .. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
-
 .. _OpenJDK: http://openjdk.java.net/projects/jdk7/
-
 .. _Gradle: http://www.gradle.org/
-
 .. _Marathon: https://mesosphere.github.io/marathon/
-
 .. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
-
+.. _Minimesos: https://minimesos.org/
+.. _Docker: https://www.docker.com/
