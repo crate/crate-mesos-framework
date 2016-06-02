@@ -5,6 +5,9 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+2016/06/02 0.2.0
+================
+
   - Fixed bug where the same task got killed multiple times
 
   - Do not allow to resize a Crate cluster greater than the amount of available

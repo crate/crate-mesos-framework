@@ -32,7 +32,7 @@ public class Version {
      */
 
     public static final boolean SNAPSHOT = true;
-    public static final Version CURRENT = new Version(200, SNAPSHOT);
+    public static final Version CURRENT = new Version(300, SNAPSHOT);
 
     public final int id;
     public final byte major;
