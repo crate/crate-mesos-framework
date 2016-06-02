@@ -31,7 +31,7 @@ public class Version {
      * YY is minor version, and ZZ is the revision.
      */
 
-    public static final boolean SNAPSHOT = true;
+    public static final boolean SNAPSHOT = false;
     public static final Version CURRENT = new Version(200, SNAPSHOT);
 
     public final int id;
