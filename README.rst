@@ -14,12 +14,6 @@ Crate Mesos Framework
 This is an integration framework which allows running and managing the Crate_
 database through Mesos_.
 
-.. warning::
-
-    **DISCLAIMER:**
-    *This is a very early version of the Crate Mesos Framework;
-    document, code behavior, and anything else may change without notice
-    and/or break older installations!*
 
 
 Quick Guide
@@ -109,6 +103,17 @@ Full Documentation
 
 The documentation for this project has moved into the ``docs/`` folder of this
 repository. It is built on ReadTheDocs where it can be found `here`_.
+
+
+Disclaimer
+==========
+
+.. warning::
+
+    The Crate Mesos Framework is intended to be used for quickly launching
+    Crate on a Mesos cluster for testing purposes.
+    However it is recommended, not to use it in production yet.
+    Changes in the API might break older installations!
 
 
 Are you a Developer?
