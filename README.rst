@@ -49,7 +49,7 @@ Example of a ``Marathon.json`` file:
         },
         "fetch": [
             {
-                "uri": "https://cdn.crate.io/downloads/crate-mesos-0.2.0.tar.gz",
+                "uri": "https://cdn.crate.io/downloads/releases/crate-mesos-0.2.0.tar.gz",
                 "extract": true,
                 "executable": false,
                 "cache": false
