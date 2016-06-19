@@ -44,8 +44,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.*;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 
 @Path("/")
@@ -244,17 +243,25 @@ public class CrateRestResource {
         try (CuratorFramework cf = zkClient()) {
             cf.start();
             List<String> children = cf.getChildren().forPath("/mesos");
+            List<Integer> masterIDList= new ArrayList<Integer>();
             if (children.isEmpty()) {
                 return null;
             }
-
             JSONObject cfData = null;
+
             for (String child : children) {
                 if (child.startsWith("json.info")) {
+                    masterIDList.add(Integer.parseInt(child.split("_")[1]));
+                }
+            }
+            Collections.sort(masterIDList);
+            for (String child : children) {
+                if (child.endsWith(String.valueOf(masterIDList.get(0)))) {
                     cfData = new JSONObject(new String(cf.getData().forPath("/mesos/" + child)));
                     break;
                 }
             }
+
             if (cfData != null) {
                 JSONObject address = cfData.getJSONObject("address");
                 return String.format("%s:%d", address.getString("ip"), address.getInt("port"));
