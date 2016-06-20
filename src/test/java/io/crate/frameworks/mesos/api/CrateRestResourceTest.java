@@ -152,6 +152,17 @@ public class CrateRestResourceTest {
     }
 
     @Test
+    public void testMultiMasterMesosAddress() throws Exception {
+        when(childBuilder.forPath("/mesos")).thenReturn(Arrays.asList("json.info_0000000100","json.info_0000000004","json.info_0000000020","json.info_0000000001"));
+        when(dataBuilder.forPath("/mesos/json.info_0000000001")).thenReturn("{\"address\":{\"ip\":\"host\",\"port\":5050}}".getBytes());
+        doCallRealMethod().when(resource).mesosMasterAddress();
+
+        String address = resource.mesosMasterAddress();
+        assertThat(address, is("host:5050"));
+    }
+
+
+    @Test
     public void testMasterMesosAddressNoAddressKeyInCFJsonData() throws Exception {
         when(childBuilder.forPath(anyString())).thenReturn(Arrays.asList("json.info_0000000000"));
         when(dataBuilder.forPath(anyString())).thenReturn("{\"a\":{\"ip\":\"172.17.0.3\",\"port\":5050}}".getBytes());
