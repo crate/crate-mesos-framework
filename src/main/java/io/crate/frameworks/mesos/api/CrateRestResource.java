@@ -243,7 +243,7 @@ public class CrateRestResource {
         try (CuratorFramework cf = zkClient()) {
             cf.start();
             List<String> children = cf.getChildren().forPath("/mesos");
-            List<Integer> masterIDList= new ArrayList<Integer>();
+            List<Integer> masterIds= new ArrayList<Integer>();
             if (children.isEmpty()) {
                 return null;
             }
@@ -251,12 +251,12 @@ public class CrateRestResource {
 
             for (String child : children) {
                 if (child.startsWith("json.info")) {
-                    masterIDList.add(Integer.parseInt(child.split("_")[1]));
+                    masterIds.add(Integer.parseInt(child.split("_")[1]));
                 }
             }
-            Collections.sort(masterIDList);
+            Collections.sort(masterIds);
             for (String child : children) {
-                if (child.endsWith(String.valueOf(masterIDList.get(0)))) {
+                if (child.endsWith(String.valueOf(masterIds.get(0)))) {
                     cfData = new JSONObject(new String(cf.getData().forPath("/mesos/" + child)));
                     break;
                 }
