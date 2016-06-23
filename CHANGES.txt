@@ -5,6 +5,11 @@ CHANGES for Crate Mesos Framework
 Unreleased
 ==========
 
+2016/06/22 0.2.1
+================
+
+  - Fixed leading master selection method
+
 2016/06/02 0.2.0
 ================
 

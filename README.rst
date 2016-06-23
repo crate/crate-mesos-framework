@@ -22,7 +22,7 @@ Quick Guide
 The easiest way to run the Crate Mesos Framework is by scheduling it using
 Marathon_, e.g. on a DCOS_ cluster.
 
-The current version of the framework is ``0.2.0``.
+The current version of the framework is ``0.2.1``.
 Example of a ``Marathon.json`` file:
 
 .. code-block:: json
@@ -49,7 +49,7 @@ Example of a ``Marathon.json`` file:
         },
         "fetch": [
             {
-                "uri": "https://cdn.crate.io/downloads/releases/crate-mesos-0.2.0.tar.gz",
+                "uri": "https://cdn.crate.io/downloads/releases/crate-mesos-0.2.1.tar.gz",
                 "extract": true,
                 "executable": false,
                 "cache": false
@@ -61,7 +61,7 @@ Example of a ``Marathon.json`` file:
                 "cache": false
             }
         ],
-        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-0.2.0.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $ZOOKEEPER",
+        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-0.2.1.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $ZOOKEEPER",
         "healthChecks": [
             {
                 "protocol": "HTTP",
