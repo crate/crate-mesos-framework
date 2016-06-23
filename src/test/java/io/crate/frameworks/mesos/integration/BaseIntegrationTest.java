@@ -100,7 +100,8 @@ public class BaseIntegrationTest {
             @Override
             public Boolean call() throws Exception {
                 for (MesosAgent mesosAgent : cluster.getAgents()) {
-                    if (mesosAgent.getState().getFramework("crate-dev").isActive()) {
+                    if (mesosAgent.getState().getFramework("crate-dev") != null &&
+                            mesosAgent.getState().getFramework("crate-dev").isActive()) {
                         try {
                             int status = Unirest.head(
                                     String.format("http://%s:%d/cluster", mesosAgent.getIpAddress(), API_PORT)
