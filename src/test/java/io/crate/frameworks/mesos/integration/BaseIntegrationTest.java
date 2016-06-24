@@ -3,6 +3,7 @@ package io.crate.frameworks.mesos.integration;
 import com.containersol.minimesos.cluster.MesosAgent;
 import com.containersol.minimesos.cluster.MesosCluster;
 import com.containersol.minimesos.junit.MesosClusterTestRule;
+import com.containersol.minimesos.state.Framework;
 import com.jayway.awaitility.Awaitility;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -99,18 +100,17 @@ public class BaseIntegrationTest {
                 .pollInterval(1, TimeUnit.SECONDS).until(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                for (MesosAgent mesosAgent : cluster.getAgents()) {
+                Framework fw = cluster.getMaster().getState().getFramework("crate-mesos");
+                int status = 0;
+                if (fw != null) {
+                    crateMesosFrameworkHostIp = cluster.getAgentStateInfo(fw.getHostname()).getString("hostname");
                     try {
-                        int status = Unirest.head(
-                                String.format("http://%s:%d/cluster", mesosAgent.getIpAddress(), API_PORT)
-                        ).asJson().getStatus();
-                        if (status == 200) {
-                            crateMesosFrameworkHostIp = mesosAgent.getIpAddress();
-                            return true;
-                        }
+                        status = Unirest.head(
+                                String.format("http://%s:%d/cluster", crateMesosFrameworkHostIp, API_PORT)).asJson().getStatus();
                     } catch (UnirestException e) {
                         //ignore
                     }
+                    return status == 200;
                 }
                 return false;
             }
