@@ -30,7 +30,7 @@
             "cache": false
         }
     ],
-    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/${CRATE_MESOS_FRAMEWORK} --zookeeper ${ZOOKEEPER}:2181 --api-port $PORT0 --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version ${CRATE_VERSION} --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --resource-cpus 0.25 --resource-memory 512",
+    "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/${CRATE_MESOS_FRAMEWORK} --zookeeper ${ZOOKEEPER}:2181 --api-port $PORT0 --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version ${CRATE_VERSION} --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --resource-cpus 0.25 --resource-memory 512 --framework-user root",
     "healthChecks": [
         {
             "protocol": "HTTP",

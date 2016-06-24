@@ -3,6 +3,7 @@ package io.crate.frameworks.mesos.integration;
 import com.containersol.minimesos.cluster.MesosAgent;
 import com.containersol.minimesos.cluster.MesosCluster;
 import com.containersol.minimesos.junit.MesosClusterTestRule;
+import com.containersol.minimesos.state.Framework;
 import com.jayway.awaitility.Awaitility;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -34,7 +35,7 @@ public class BaseIntegrationTest {
     private static final int HTTP_PORT = 4200;
     private static final int TRANSPORT_PORT = 4300;
     private static final int API_PORT = 4242;
-    private static final int WAIT_TIMEOUT_SECONDS = 90;
+    private static final int WAIT_TIMEOUT_SECONDS = 190;
 
     @ClassRule
     public static MesosClusterTestRule testRule =
@@ -68,6 +69,8 @@ public class BaseIntegrationTest {
             appJson = replaceToken(appJson, "ZOOKEEPER", cluster.getZooKeeper().getIpAddress());
             appJson = replaceToken(appJson, "MESOS_MASTER", cluster.getZooKeeper().getFormattedZKAddress());
             appJson = replaceToken(appJson, "CRATE_VERSION", crateVersion());
+
+            System.out.println("appSJON : " + appJson);
             return appJson;
         }
     }
@@ -100,18 +103,24 @@ public class BaseIntegrationTest {
             @Override
             public Boolean call() throws Exception {
                 for (MesosAgent mesosAgent : cluster.getAgents()) {
-                    if (mesosAgent.getState().getFramework("crate-dev") != null &&
-                            mesosAgent.getState().getFramework("crate-dev").isActive()) {
-                        try {
-                            int status = Unirest.head(
-                                    String.format("http://%s:%d/cluster", mesosAgent.getIpAddress(), API_PORT)
-                            ).asJson().getStatus();
-                            crateMesosFrameworkHostIp = mesosAgent.getIpAddress();
-                            return status == 200;
-                        } catch (UnirestException e) {
-                            //ignore
-                        }
+
+                    //just for testing, will be deleted then
+                    for(Framework fw : mesosAgent.getState().getFrameworks()){
+                        System.out.println(fw.getName());
                     }
+
+                    try {
+                        int status = Unirest.head(
+                                String.format("http://%s:%d/cluster", mesosAgent.getIpAddress(), API_PORT)
+                        ).asJson().getStatus();
+                        if (status == 200) {
+                            crateMesosFrameworkHostIp = mesosAgent.getIpAddress();
+                            return true;
+                        }
+                    } catch (UnirestException e) {
+                        //ignore
+                    }
+                    //}
                 }
                 return false;
             }
