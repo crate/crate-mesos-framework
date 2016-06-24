@@ -11,6 +11,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.RegexFileFilter;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 
@@ -42,7 +43,7 @@ public class BaseIntegrationTest {
 
     public static MesosCluster cluster = testRule.getMesosCluster();
 
-    private static String crateMesosFrameworkHostIp;
+    private static String crateMesosFrameworkEndPoint;
 
     @BeforeClass
     public static void beforeClass() throws IOException {
@@ -99,17 +100,18 @@ public class BaseIntegrationTest {
                 .pollInterval(1, TimeUnit.SECONDS).until(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                for (MesosAgent mesosAgent : cluster.getAgents()) {
-                    try {
-                        int status = Unirest.head(
-                                String.format("http://%s:%d/cluster", mesosAgent.getIpAddress(), API_PORT)
-                        ).asJson().getStatus();
-                        if (status == 200) {
-                            crateMesosFrameworkHostIp = mesosAgent.getIpAddress();
-                            return true;
+                JSONArray frameworks = cluster.getClusterStateInfo().getJSONArray("frameworks");
+                for (int i = 0; i < frameworks.length(); i++) {
+                    JSONObject framework = frameworks.getJSONObject(i);
+                    if ("crate-mesos".equals(framework.getString("name"))) {
+                        try {
+                            String address = framework.getString("webui_url");
+                            int status = Unirest.head(address).asJson().getStatus();
+                            crateMesosFrameworkEndPoint = address;
+                            return status == 200;
+                        } catch (UnirestException e) {
+                            //ignore
                         }
-                    } catch (UnirestException e) {
-                        //ignore
                     }
                 }
                 return false;
@@ -123,9 +125,7 @@ public class BaseIntegrationTest {
             @Override
             public Boolean call() throws Exception {
                 try {
-                    Unirest.post(
-                            String.format("http://%s:%d/cluster/shutdown", crateMesosFrameworkHostIp, API_PORT)
-                    ).asJson();
+                    Unirest.post(String.format("%s/shutdown", crateMesosFrameworkEndPoint)).asJson();
                 } catch (UnirestException e) {
                     //ignore
                 }
@@ -136,7 +136,7 @@ public class BaseIntegrationTest {
 
     public void scaleCrate(final int numNodes) {
         try {
-            Unirest.post(String.format("http://%s:%d/cluster/resize", crateMesosFrameworkHostIp, API_PORT))
+            Unirest.post(String.format("%s/resize", crateMesosFrameworkEndPoint))
                     .header("Content-Type", "application/json")
                     .body(String.format("{\"instances\": %d}", numNodes)).asJson();
         } catch (UnirestException e) {
