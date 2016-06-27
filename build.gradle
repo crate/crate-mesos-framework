@@ -33,7 +33,7 @@ ext {
     jerseyMediaJsonJackson="2.16"
 
     // apache
-    apacheHttpClientVersion="4.4"
+    apacheHttpClientVersion="4.4.1"
     apacheCommonIOVersion="1.3.2"
 
     // utils

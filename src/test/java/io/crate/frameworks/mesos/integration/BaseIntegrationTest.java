@@ -139,7 +139,7 @@ public class BaseIntegrationTest {
             Unirest.post(String.format("http://%s:%d/cluster/resize", crateMesosFrameworkHostIp, API_PORT))
                     .header("Content-Type", "application/json")
                     .body(String.format("{\"instances\": %d}", numNodes)).asJson();
-        } catch (UnirestException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Error in scaling crate.");
         }
@@ -154,39 +154,40 @@ public class BaseIntegrationTest {
     }
 
     public int crateNodesCount() throws UnirestException {
-        List<String> crateHosts = crateActiveHosts();
-        if (crateHosts.isEmpty()) {
+        String crateHost = crateActiveHost();
+        if (crateHost == null) {
             return 0;
         }
-        JSONArray rows = Unirest.post(String.format("http://%s:%d/_sql", crateHosts.get(0), HTTP_PORT))
+        JSONArray rows = Unirest.post(String.format("http://%s:%d/_sql", crateHost, HTTP_PORT))
                 .header("Content-Type", "application/json")
                 .body("{\"stmt\": \"select count(*) from sys.nodes\"}")
                 .asJson().getBody().getObject().getJSONArray("rows");
         return rows.getJSONArray(0).getInt(0);
     }
 
-    private List<String> crateActiveHosts() {
-        List<String> hosts = new ArrayList<>();
+    private String crateActiveHost() {
+        String crateHostIp = null;
         for (MesosAgent agent : cluster.getAgents()) {
             try {
                 String crateUrl = String.format("http://%s:%d", agent.getIpAddress(), HTTP_PORT);
                 int status = Unirest.head(crateUrl).asJson().getStatus();
                 if (status == 200) {
-                    hosts.add(agent.getIpAddress());
+                    crateHostIp = agent.getIpAddress();
+                    break;
                 }
             } catch (UnirestException e) {
                 //ignore
             }
         }
-        return hosts;
+        return crateHostIp;
     }
 
     public HttpResponse<JsonNode> execute(String stmt) throws UnirestException {
-        List<String> crateHosts = crateActiveHosts();
-        if (crateHosts.isEmpty()) {
+        String crateHost = crateActiveHost();
+        if (crateHost == null) {
             throw new RuntimeException("Crate nodes are not running");
         }
-        return Unirest.post(String.format("http://%s:%d/_sql", crateHosts.get(0), HTTP_PORT))
+        return Unirest.post(String.format("http://%s:%d/_sql", crateHost, HTTP_PORT))
                 .header("Content-Type", "application/json")
                 .body(String.format("{\"stmt\": \"%s\"}", stmt))
                 .asJson();
