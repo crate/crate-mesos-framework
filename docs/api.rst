@@ -180,5 +180,5 @@ these slaves.
 
 .. _Configuration:
 https://crate.io/docs/en/stable/configuration.html#graceful-stop
-.. _Zero Downtime Upgrade:
+.. _`Zero Downtime Upgrade`:
 https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html

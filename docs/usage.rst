@@ -1,3 +1,7 @@
+.. highlight:: sh
+
+.. _usage:
+
 =====
 Usage
 =====
@@ -215,7 +219,6 @@ Marathon. Keep in mind that each cluster should have unique ports so the port
 configuration options should be set in each clusters' ``cmd`` definition.
 
 
-.. _Mesos-DNS: http://mesosphere.github.io/mesos-dns/
-.. _Multi Zone Crate Cluster:
-https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
-.. _DCOS: https://docs.mesosphere.com/usage/services/crate/
+.. _Mesos-DNS: http://mesosphere.github.io/mesos-dns
+.. _`Multi Zone Crate Cluster`: https://crate.io/docs/en/latest/best_practice/multi_zone_setup.html
+.. _DCOS: https://docs.mesosphere.com/usage/services/crate
