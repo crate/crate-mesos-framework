@@ -127,7 +127,7 @@ on GitHub. To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _Mesos: http://mesos.apache.org
 .. _Marathon: https://mesosphere.github.io/marathon/
 .. _DCOS: https://dcos.io
-.. _API: https://crate-mesos-framework.readthedocs.io/en/latest/api.html
-.. _documentation: https://crate-mesos-framework.readthedocs.io/en/latest/index.html
-.. _here: https://crate-mesos-framework.readthedocs.io/en/latest/index.html
+.. _API: https://crate.io/docs/reference/mesos-framework/en/latest/api.html
+.. _documentation: https://crate.io/docs/reference/mesos-framework/
+.. _here: https://crate.io/docs/reference/mesos-framework/
 
