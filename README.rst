@@ -11,9 +11,10 @@ Crate Mesos Framework
 .. image:: https://img.shields.io/badge/license-Apache%202-blue.svg
     :target: https://raw.githubusercontent.com/crate/crate-mesos-framework/master/LICENSE
 
-This is an integration framework which allows running and managing the Crate_
+This is an experimental integration framework which allows running and managing the Crate_
 database through Mesos_.
 
+*The status of that framework is experimental and should not be used in production.*
 
 
 Quick Guide
@@ -130,4 +131,3 @@ on GitHub. To do so, please refer to ``DEVELOP.rst`` for further information.
 .. _API: https://crate.io/docs/reference/mesos-framework/en/latest/api.html
 .. _documentation: https://crate.io/docs/reference/mesos-framework/
 .. _here: https://crate.io/docs/reference/mesos-framework/
-
