@@ -1,6 +1,6 @@
-=====================
-Crate Mesos Framework
-=====================
+=======================
+CrateDB Mesos Framework
+=======================
 
 .. image:: https://travis-ci.org/crate/crate-mesos-framework.svg?branch=master
     :target: https://travis-ci.org/crate/crate-mesos-framework
@@ -11,123 +11,153 @@ Crate Mesos Framework
 .. image:: https://img.shields.io/badge/license-Apache%202-blue.svg
     :target: https://raw.githubusercontent.com/crate/crate-mesos-framework/master/LICENSE
 
-This is an experimental integration framework which allows running and managing the Crate_
-database through Mesos_.
+|
 
-*The status of that framework is experimental and should not be used in production.*
+This is an integration framework that allows you to run and manage CrateDB_ via
+`Apache Mesos`_.
 
+*Note: this framework is experimental and not suitable for production use.
+Future changes in the API might break older installations!*
 
-Quick Guide
-===========
+Prerequisites
+=============
 
-The easiest way to run the Crate Mesos Framework is by scheduling it using
-Marathon_, e.g. on a DCOS_ cluster.
+A JDK needs to be installed.
 
-The current version of the framework is ``0.2.1``.
-Example of a ``Marathon.json`` file:
+On OS X, we recommend using `Oracle's Java`_. If you're using Linux, we
+recommend OpenJDK_.
 
-.. code-block:: json
+We recommend you use a recent Java 8 version.
 
-    {
-        "id": "crate-framework",
-        "instances": 1,
-        "cpus": 0.25,
-        "mem": 128,
-        "portDefinitions": [
-            {
-                "port": 4040,
-                "protocol": "tcp",
-                "name": "api"
-            }
-        ],
-        "requirePorts": true,
-        "env": {
-            "CRATE_CLUSTER_NAME": "my-crate-cluster",
-            "CRATE_VERSION": "0.54.9",
-            "CRATE_HTTP_PORT": "4200",
-            "CRATE_TRANSPORT_PORT": "4300",
-            "ZOOKEEPER": "master.mesos:2181"
-        },
-        "fetch": [
-            {
-                "uri": "https://cdn.crate.io/downloads/releases/crate-mesos-0.2.1.tar.gz",
-                "extract": true,
-                "executable": false,
-                "cache": false
-            },
-            {
-                "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
-                "extract": true,
-                "executable": false,
-                "cache": false
-            }
-        ],
-        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-0.2.1.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $ZOOKEEPER",
-        "healthChecks": [
-            {
-                "protocol": "HTTP",
-                "path": "/cluster",
-                "gracePeriodSeconds": 3,
-                "intervalSeconds": 10,
-                "portIndex": 0,
-                "timeoutSeconds": 10,
-                "maxConsecutiveFailures": 3
-            }
-        ]
-    }
+Vagrant_ is also used.
 
-Use ``curl`` to submit the file to Marathon::
-
-    curl -sXPOST "http://master.mesos:8080/v2/apps" -d@crate.json -H "Content-Type: application/json" | jq .
-
-Once deployed you can use the framework API_ to launch a Crate cluster. To do so
-find out on which host the framework is scheduled and execute the ``resize``
-command::
-
-    curl -sXPOST -H "Content-Type: application/json" $FRAMEWORK_HOST:4040/cluster/resize -d '{"instances": $NUM_INSTANCE}'
-
-Read the documentation_ for further usage instructions!
-
-Build from source
------------------
-
-However, the ``jar`` file can also be built from source::
-
-    ./gradlew fatJar
-
-The output jar file can be found in ``build/libs/`` and need to be hosted on
-your own.
-
-
-Full Documentation
+Setup and Building
 ==================
 
-The documentation for this project has moved into the ``docs/`` folder of this
-repository. It is built on ReadTheDocs where it can be found `here`_.
+Clone the repository::
 
+    $ git clone https://github.com/crate/crate-mesos-framework.git
 
-Disclaimer
-==========
+Build the JAR file::
 
-.. warning::
+    $ ./gradlew fatJar
 
-    The Crate Mesos Framework is intended to be used for quickly launching
-    Crate on a Mesos cluster for testing purposes.
-    However it is recommended, not to use it in production yet.
-    Changes in the API might break older installations!
+The JAR file can then be found in the ``build/libs/`` directory.
 
+This JAR file cannot be run directly as it requires a Mesos master instance and
+the Mesos native libraries.
 
-Are you a Developer?
+Launching
+=========
+
+This project ships with a Vagrantfile that can be used with Vagrant to launch
+*virtual machines* (VM) with Mesos installed.
+
+Launch the VMs like so::
+
+    $ vagrant up
+
+This will create and provision four VMs:
+
+- ``mesos-master``
+    The Mesos master instance along with Zookeeper
+- ``mesos-slave-{1..3}``
+    The Mesos slaves
+
+If you have run ``vagrant up`` before, Vagrant boots the existing VMs.
+
+Once the VMs are up-and-running, the CrateDB Mesos framework can be started
+inside the master VM. You can do that like so::
+
+    $ vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.54.9 --zookeeper 192.168.10.100:2181"
+
+Inside the VM, ``/vagrant`` is mapped to the project root. This way, the JAR
+file can be accessed.
+
+Hosts Entries
+-------------
+
+The static IPs of the Vagrant VMs are ``192.168.10.100`` for the master and
+``192.168.10.{101..103}`` for the slaves.
+
+You can add them to your ``/etc/hosts`` file, like so::
+
+    192.168.10.100 mesos-master
+    192.168.10.101 mesos-slave-1
+    192.168.10.102 mesos-slave-2
+    192.168.10.103 mesos-slave-3
+
+The Mesos WebUI should be available under http://mesos-master:5050 immediately
+after ``vagrant up`` is finished.
+
+Once the CrateDB Mesos framework has been launched, the framework API becomes
+available at http://mesos-master:4040/cluster (if an API port is not otherwise
+specified).
+
+Shortcut
+--------
+
+You can re-build the JAR file and re-start the framework with this shortcut
+command::
+
+    $ bin/deploy --crate-version 0.47.7 --zookeeper 192.168.10.100:2181
+
+Running via Marathon
 ====================
 
-You can build Crate Mesos Framework on your own with the latest version hosted
-on GitHub. To do so, please refer to ``DEVELOP.rst`` for further information.
+One of the easiest ways to run CrateDB Mesos framework is via Marathon_, on
+something like a DCOS_ cluster.
 
+For installing Marathon, please refer to `Mesosphere install guide`_. The
+Marathon WebUI should be available under http://mesos-master:8080 after setting
+things up.
 
-.. _Crate: https://crate.io
-.. _Mesos: http://mesos.apache.org
-.. _Marathon: https://mesosphere.github.io/marathon/
-.. _DCOS: https://dcos.io
+Modify the template `marathon/local.json`_ file to suit your purposes and then
+submit the file to Marathon, like so::
+
+    $ curl -s -XPOST http://mesos-master:8080/v2/apps -d@marathon/local.json -H "Content-Type: application/json"
+
+Once deployed, you can use the framework API_ to launch a CrateDB cluster. To do
+so, execute the ``resize`` command::
+
+    $ curl -sXPOST -H "Content-Type: application/json" <FRAMEWORK_HOST>:4040/cluster/resize -d '{"instances": <NUM_INSTANCES>}'
+
+Here, ``<FRAMEWORK_HOST>`` is the hostname or IP of the host the framework is
+scheduled on, and ``<NUM_INSTANCES>`` is the desired number of CrateDB nodes.
+
+Contributing
+============
+
+This project is primarily maintained by `Crate.io`_, but we welcome community
+contributions!
+
+See the `developer docs`_ and the `contribution docs`_ for more information.
+
+Help
+====
+
+Looking for more help?
+
+- Read `the project documentation`_
+- Check `StackOverflow`_ for common problems
+- Chat with us on `Slack`_
+- Get `paid support`_
+
+.. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
+.. _Apache Mesos: http://mesos.apache.org
 .. _API: https://crate.io/docs/reference/mesos-framework/en/latest/api.html
-.. _documentation: https://crate.io/docs/reference/mesos-framework/
-.. _here: https://crate.io/docs/reference/mesos-framework/
+.. _contribution docs: CONTRIBUTING.rst
+.. _Crate.io: http://crate.io/
+.. _CrateDB: https://crate.io
+.. _DCOS: https://dcos.io
+.. _developer docs: DEVELOP.rst
+.. _Gradle: http://www.gradle.org/
+.. _Marathon: https://mesosphere.github.io/marathon/
+.. _marathon/local.json: marathon/local.json
+.. _OpenJDK: http://openjdk.java.net/projects/jdk8/
+.. _Oracle's Java: http://www.java.com/en/download/help/mac_install.xml
+.. _paid support: https://crate.io/pricing/
+.. _Slack: https://crate.io/docs/support/slackin/
+.. _StackOverflow: https://stackoverflow.com/tags/crate
+.. _the project documentation: https://crate.io/docs/reference/mesos-framework/
+.. _Vagrant: https://www.vagrantup.com/

@@ -1,243 +1,93 @@
-=================================
-Crate-Mesos-Framework DEVELOPMENT
-=================================
+===============
+Developer Guide
+===============
 
-Prerequisites
-=============
+IDE
+---
 
-Crate-mesos-framework is written in Java_ 7, so a JDK needs to be installed.
-On OS X we recommend using `Oracle's Java`_ and OpenJDK_ on Linux Systems.
-
-Git checkout
-============
-
-Clone the repository::
-
-    $ git clone https://github.com/crate/crate-mesos-framework.git
-
-Gradlew - Building Crate-Mesos-Framework
-========================================
-
-This project uses Gradle_ as build tool. It can be invoked by executing
-``./gradlew``. The first time this command is executed it is bootstrapped
-automatically, therefore there is no need to install gradle on the system.
-
-IntelliJ
---------
+We recommend that you use `IntelliJ IDEA`_ to develop this project.
 
 Gradle can be used to generate project files that can be opened in IntelliJ::
 
-    ./gradlew idea
-
-Building and running Crate-Mesos-Framework
-==========================================
-
-Before the crate-mesos-framework can be launched the ``jar`` file has to be
-generated::
-
-    ./gradlew fatJar
-
-The jar cannot be run directly as it requires a mesos-master and the mesos
-native libraries.  This project includes a Vagrantfile, so ``vagrant`` can be
-used to instrument a virtual machine which has mesos installed.
-
-If ``vagrant`` is installed simply run::
-
-    vagrant up
-
-This will create and provision 4 VMs:
-
-* ``mesos-master``: The Mesos master instance + Zookeeper
-* ``mesos-slave-{1..3}``: The Mesos slaves
-
-If this is the first time ``vagrant up`` is run, otherwise it will simply boot
-up the existing VMs.
-
-Once the VM is up and running the crate-mesos-framework can be started `inside`
-the VM. To do so ``vagrant ssh mesos-master`` can be used::
-
-    vagrant ssh -c "java -Djava.library.path=/usr/local/lib -jar /vagrant/build/libs/crate-mesos-*.jar --crate-version 0.54.9 --zookeeper 192.168.10.100:2181"
-
-.. note::
-
-    Inside the VM /vagrant is mapped to the project root. This way the
-    crate-mesos jar file can be accesses from inside the VM.
-
-
-Hosts Entries
--------------
-
-The static IPs of the Vagrant VMs are ``192.168.10.100`` for the master and
-``192.168.10.{101..103}`` for the slaves.
-
-You can add them to your ``/etc/hosts`` file::
-
-    192.168.10.100   mesos-master
-    192.168.10.101   mesos-slave-1
-    192.168.10.102   mesos-slave-2
-    192.168.10.103   mesos-slave-3
-
-The Mesos WebUI should be available under http://mesos-master:5050 immediately
-after ``vagrant up`` is finished.
-
-Once the crate-mesos-framework has been launched the framework API becomes
-available under http://mesos-master:4040/cluster (if API port not otherwise
-specified).
-
-**As a shortcut to ``./gradlew fatJar`` and running ``vagrant ssh ...`` it is
-also possible to simply use ``bin/deploy --crate-version 0.47.7 --zookeeper
-192.168.10.100:2181`` which will invoke both commands.**
-
-Running Crate-Mesos-Framework via Marathon
-------------------------------------------
-
-``Crate-Mesos-Framework`` instances can be run and controlled through Marathon_
-system. For installing Marathon, please refer to `Mesosphere install guide`_.
-Marathon WebUI should be available under http://mesos-master:8080 after setting up.
-To run ``Crate-Mesos-Framework`` instance via ``HTTP`` you need to ``POST`` a
-JSON file with configuration environment variables to Marathon.
-
-Example
--------
-
-``marathon/local.json``
-
-::
-
-    {
-        "id": "crate-framework",
-        "instances": 1,
-        "cpus": 0.25,
-        "mem": 128,
-        "portDefinitions": [
-            {
-                "port": 4040,
-                "protocol": "tcp",
-                "name": "api"
-            }
-        ],
-        "requirePorts": true,
-        "env": {
-            "CRATE_CLUSTER_NAME": "dev-local",
-            "CRATE_VERSION": "0.54.9",
-            "CRATE_HTTP_PORT": "4200",
-            "CRATE_TRANSPORT_PORT": "4300",
-            "MESOS_MASTER": "192.168.10.100"
-        },
-        "fetch": [
-            {
-                "uri": "file:///vagrant/build/libs/crate-mesos.tar.gz",
-                "extract": true,
-                "executable": false,
-                "cache": false
-            },
-            {
-                "uri": "https://cdn.crate.io/downloads/openjdk/jre-7u80-linux.tar.gz",
-                "extract": true,
-                "executable": false,
-                "cache": false
-            }
-        ],
-        "cmd": "env && $(pwd)/jre/bin/java $JAVA_OPTS -jar $(pwd)/crate-mesos-*.jar --crate-cluster-name $CRATE_CLUSTER_NAME --crate-version $CRATE_VERSION --api-port $PORT0 --crate-http-port $CRATE_HTTP_PORT --crate-transport-port $CRATE_TRANSPORT_PORT --zookeeper $MESOS_MASTER:2181",
-        "healthChecks": [
-            {
-                "protocol": "HTTP",
-                "path": "/cluster",
-                "gracePeriodSeconds": 3,
-                "intervalSeconds": 10,
-                "portIndex": 0,
-                "timeoutSeconds": 10,
-                "maxConsecutiveFailures": 3
-            }
-        ]
-    }
-
-::
-
-    curl -s -XPOST http://mesos-master:8080/v2/apps -d@marathon/local.json -H "Content-Type: application/json"
+    $ ./gradlew idea
 
 Running tests
 =============
 
-In order to run the tests simply run them from within IntelliJ or use Gradle::
+You can run tests directly from within IntelliJ.
 
-    ./gradlew test
+You can also run them using Gradle::
+
+    $ ./gradlew test
 
 Integrations Tests
 ------------------
 
-Integration test suite can be run using the following Gradle command::
+The integration tests can be run like so::
 
-    ./gradlew itest
+    $ ./gradlew itest
 
-However, integration tests use the Minimesos_ testing Framework which requires
-a working local Docker_ environment::
+The integration tests use the Minimesos_ testing framework which requires a
+working local Docker_ environment.
 
+You can set up a local Docker environment like so::
 
-    docker-machine create -d virtualbox \
+    $ docker-machine create -d virtualbox \
         --virtualbox-memory 8192 \
         --virtualbox-cpu-count 1 \
         minimesos
-    eval $(docker-machine env minimesos)
-    sudo route delete 172.17.0.0/16
-    sudo route -n add 172.17.0.0/16 $(docker-machine ip minimesos)
-
+    $ eval $(docker-machine env minimesos)
+    $ sudo route delete 172.17.0.0/16
+    $ sudo route -n add 172.17.0.0/16 $(docker-machine ip minimesos)
 
 Debugging
 =========
 
-It is not really possible to debug the framework from inside intellij. The best
-way is to use loggers and then watch all the log files from mesos::
+It is not easy to debug the framework from within IntelliJ.
 
-    vagrant ssh -c "tail -f /var/log/mesos/mesos-{slave,master}.{INFO,WARNING,ERROR}"
+The best way to debug is to use loggers and then watch the log files from
+Mesos::
 
+    $ vagrant ssh -c "tail -f /var/log/mesos/mesos-{slave,master}.{INFO,WARNING,ERROR}"
 
 Zookeeper
 =========
 
-If you need to reset the state in Zookeeper you can use the zkCli::
+If you need to reset the state in Zookeeper you can use the CLI client::
 
-    bin/zk
+    $ bin/zk
 
-and then to delete all crate-mesos state run::
+To delete all CrateDB Mesos state run::
 
-    rmr /crate-mesos
+    $ rmr /crate-mesos
 
+Preparing a Release
+===================
 
-Preparing a new Release
-=======================
+To create a new release, you must:
 
-Before creating a new distribution, a new version and tag should be created:
+- Update the ``CURRENT`` version in ``io.crate.frameworks.mesos.Version``
 
- - Update the CURRENT version in ``io.crate.frameworks.mesos.Version``.
+- Add a section for the new version in the ``CHANGES.txt`` file
 
- - Add a note for the new version at the ``CHANGES.txt`` file.
+- Commit your changes with a message like "prepare release x.y.z"
 
- - Commit e.g. using message ``'prepare release x.x.x'``.
+- Push to origin
 
- - Push to origin
+- Create a tag by running ``./devtools/create_tag.sh``
 
- - Create a tag using the ``create_tag.sh`` script
-   (run ``./devtools/create_tag.sh``).
+At this point, Jenkins will take care of the rest.
 
-Now everything is ready for building a new distribution, either
-manually or let Jenkins do the job as usual :-)
+However, if you'd like to do things manually, you can run::
 
-Building a release tarball is done via the ``release`` task. This task
-actually only runs the ``fatJar`` task but additionally checks that
-the output of ``git describe --tag`` matches the current version of
-Crate Mesos Framework::
+    $ ./gradlew release
 
-    ./gradlew release
+This Gradle task runs the ``fatJar`` task, but additionally checks that the
+output of ``git describe --tag`` matches the current version.
 
-The resulting ``jar`` file will reside in the folder ``build/libs/``.
+The resulting JAR file will reside in the ``build/libs`` directory.
 
-
-.. _Java: http://www.java.com/
-.. _`Oracle's Java`: http://www.java.com/en/download/help/mac_install.xml
-.. _OpenJDK: http://openjdk.java.net/projects/jdk7/
-.. _Gradle: http://www.gradle.org/
-.. _Marathon: https://mesosphere.github.io/marathon/
-.. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
-.. _Minimesos: https://minimesos.org/
 .. _Docker: https://www.docker.com/
+.. _Gradle: http://www.gradle.org/
+.. _IntelliJ IDEA: https://www.jetbrains.com/idea/
+.. _Minimesos: https://minimesos.org/
