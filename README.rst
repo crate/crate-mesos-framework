@@ -13,8 +13,8 @@ CrateDB Mesos Framework
 
 |
 
-This is an integration framework that allows you to run and manage CrateDB_ via
-`Apache Mesos`_.
+An integration framework that allows you to run and manage CrateDB_ via `Apache
+Mesos`_.
 
 *Note: this framework is experimental and not suitable for production use.
 Future changes in the API might break older installations!*
@@ -128,7 +128,7 @@ scheduled on, and ``<NUM_INSTANCES>`` is the desired number of CrateDB nodes.
 Contributing
 ============
 
-This project is primarily maintained by `Crate.io`_, but we welcome community
+This project is primarily maintained by Crate.io_, but we welcome community
 contributions!
 
 See the `developer docs`_ and the `contribution docs`_ for more information.
