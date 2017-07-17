@@ -16,6 +16,8 @@ CrateDB Mesos Framework
 An integration framework that allows you to run and manage CrateDB_ via `Apache
 Mesos`_.
 
+**This project is currently unmaintained. Contributions welcome. See below.**
+
 *Note: this framework is experimental and not suitable for production use.
 Future changes in the API might break older installations!*
 
