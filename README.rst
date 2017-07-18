@@ -5,9 +5,6 @@ CrateDB Mesos Framework
 .. image:: https://travis-ci.org/crate/crate-mesos-framework.svg?branch=master
     :target: https://travis-ci.org/crate/crate-mesos-framework
 
-.. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
-    :target: https://crate-mesos-framework.readthedocs.io/en/latest/
-
 .. image:: https://img.shields.io/badge/license-Apache%202-blue.svg
     :target: https://raw.githubusercontent.com/crate/crate-mesos-framework/master/LICENSE
 
