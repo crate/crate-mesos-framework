@@ -158,5 +158,5 @@ Looking for more help?
 .. _paid support: https://crate.io/pricing/
 .. _Slack: https://crate.io/docs/support/slackin/
 .. _StackOverflow: https://stackoverflow.com/tags/crate
-.. _the project documentation: https://crate.io/docs/reference/mesos-framework/
+.. _the project documentation: https://github.com/crate/crate-mesos-framework/tree/master/docs
 .. _Vagrant: https://www.vagrantup.com/
