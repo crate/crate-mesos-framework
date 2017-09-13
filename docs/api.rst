@@ -2,6 +2,10 @@
 Framework API
 =============
 
+.. rubric:: Table of Contents
+
+.. contents::
+   :local:
 
 API Usage
 =========
@@ -178,7 +182,5 @@ these slaves.
     making it impossible to spawn Crate instances on these slaves again.
 
 
-.. _Configuration:
-https://crate.io/docs/en/stable/configuration.html#graceful-stop
-.. _`Zero Downtime Upgrade`:
-https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html
+.. _Configuration: https://crate.io/docs/en/stable/configuration.html#graceful-stop
+.. _`Zero Downtime Upgrade`: https://crate.io/docs/en/stable/best_practice/cluster_upgrade.html

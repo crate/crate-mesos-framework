@@ -2,6 +2,11 @@
 Installation
 ============
 
+.. rubric:: Table of Contents
+
+.. contents::
+   :local:
+
 Build
 =====
 
