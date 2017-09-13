@@ -6,6 +6,11 @@
 Usage
 =====
 
+.. rubric:: Table of Contents
+
+.. contents::
+   :local:
+
 Command Line Options
 ====================
 
