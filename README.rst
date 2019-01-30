@@ -137,10 +137,8 @@ Help
 
 Looking for more help?
 
-- Read `the project documentation`_
-- Check `StackOverflow`_ for common problems
-- Chat with us on `Slack`_
-- Get `paid support`_
+- Read the `project docs`_
+- Check out our `support channels`_
 
 .. _`Mesosphere install guide`: http://mesosphere.com/docs/getting-started/datacenter/install/
 .. _Apache Mesos: http://mesos.apache.org
@@ -155,8 +153,6 @@ Looking for more help?
 .. _marathon/local.json: marathon/local.json
 .. _OpenJDK: http://openjdk.java.net/projects/jdk8/
 .. _Oracle's Java: http://www.java.com/en/download/help/mac_install.xml
-.. _paid support: https://crate.io/pricing/
-.. _Slack: https://crate.io/docs/support/slackin/
-.. _StackOverflow: https://stackoverflow.com/tags/crate
-.. _the project documentation: https://github.com/crate/crate-mesos-framework/tree/master/docs
+.. _project doc: https://github.com/crate/crate-mesos-framework/tree/master/docs
+.. _support channels: https://crate.io/support/
 .. _Vagrant: https://www.vagrantup.com/
